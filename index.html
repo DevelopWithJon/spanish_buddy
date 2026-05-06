@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spanish Trainer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- HOME SCREEN -->
+  <div id="home-screen" class="screen active">
+    <div class="home-card">
+      <div class="flag">🇪🇸</div>
+      <h1>Spanish Trainer</h1>
+      <div class="home-meta">
+        <span><span id="home-word-count">10</span> words loaded</span>
+        <button id="home-edit-words-btn" class="btn-link">Edit list</button>
+      </div>
+      <div class="game-options">
+        <button class="game-option-card" id="pick-game1">
+          <span class="game-icon">🎤</span>
+          <h3>Pronunciation</h3>
+          <p>Say the Spanish word aloud and get scored on accuracy</p>
+        </button>
+        <button class="game-option-card" id="pick-game2">
+          <span class="game-icon">✏️</span>
+          <h3>Fill in the Blank</h3>
+          <p>Type the missing word in AI-generated Spanish sentences</p>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME 1 SCREEN -->
+  <div id="game-screen" class="screen">
+    <header class="game-header">
+      <button id="g1-home-btn" class="btn-home">← Home</button>
+      <div class="progress-info">
+        <span id="card-counter">1 / 10</span>
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+      </div>
+      <div class="score-display">
+        <span class="score-label">Points</span>
+        <span id="total-score">0</span>
+      </div>
+    </header>
+    <main class="game-main">
+      <div id="flashcard" class="flashcard">
+        <div class="flashcard-inner">
+          <div class="flashcard-front">
+            <span class="card-label">Translate &amp; Pronounce</span>
+            <h2 id="english-word"></h2>
+            <span class="card-hint">Say it in Spanish</span>
+          </div>
+          <div class="flashcard-back">
+            <span class="card-label">Correct Answer</span>
+            <h2 id="spanish-word"></h2>
+            <div id="result-badge" class="result-badge"></div>
+          </div>
+        </div>
+      </div>
+      <div id="feedback-panel" class="feedback-panel hidden">
+        <div class="feedback-row">
+          <span class="feedback-label">You said:</span>
+          <span id="spoken-text" class="feedback-value"></span>
+        </div>
+        <div class="feedback-row">
+          <span class="feedback-label">Match:</span>
+          <span id="match-score" class="feedback-value"></span>
+        </div>
+        <div id="points-earned" class="points-earned"></div>
+      </div>
+      <div class="controls">
+        <button id="speak-btn" class="btn btn-speak">
+          <span class="mic-icon">🎤</span>
+          <span id="speak-label">Speak</span>
+        </button>
+        <button id="next-btn" class="btn btn-next hidden">Next →</button>
+        <button id="skip-btn" class="btn btn-skip">Skip</button>
+      </div>
+      <p id="listening-status" class="listening-status"></p>
+    </main>
+  </div>
+
+  <!-- GAME 1 RESULTS -->
+  <div id="results-screen" class="screen">
+    <div class="results-card">
+      <div class="results-icon" id="results-icon">🏆</div>
+      <h2>Round Complete!</h2>
+      <div class="final-score-display">
+        <span id="final-score">0</span>
+        <span class="final-score-max" id="final-score-max">/ 30</span>
+      </div>
+      <p id="results-message"></p>
+      <div class="results-breakdown" id="results-breakdown"></div>
+      <div class="results-actions">
+        <button id="retry-btn" class="btn btn-primary">Play Again</button>
+        <button id="g1-home-results-btn" class="btn btn-secondary">← Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME 2 SCREEN -->
+  <div id="game2-screen" class="screen">
+    <header class="game-header">
+      <button id="g2-home-btn" class="btn-home">← Home</button>
+      <div class="progress-info">
+        <span id="g2-card-counter">1 / 10</span>
+        <div class="progress-bar"><div id="g2-progress-fill"></div></div>
+      </div>
+      <div class="score-display">
+        <span class="score-label">Points</span>
+        <span id="g2-total-score">0</span>
+      </div>
+      <span id="g2-difficulty-badge" class="difficulty-badge">Intermediate</span>
+    </header>
+    <main class="game2-main">
+      <div class="sentence-card" id="g2-sentence-card">
+        <div id="g2-loading" class="g2-loading">
+          <div class="spinner"></div>
+          <span>Generating sentence...</span>
+        </div>
+        <p id="g2-sentence" class="sentence-text hidden"></p>
+      </div>
+
+      <div id="g2-answer-area" class="answer-area hidden">
+        <input id="g2-input" type="text" placeholder="Type the missing word..." autocomplete="off" spellcheck="false" />
+        <button id="g2-submit-btn" class="btn btn-primary">Submit</button>
+      </div>
+
+      <div id="g2-feedback" class="feedback-panel hidden">
+        <div class="feedback-row">
+          <span class="feedback-label">Your answer:</span>
+          <span id="g2-your-answer" class="feedback-value"></span>
+        </div>
+        <div class="feedback-row">
+          <span class="feedback-label">Correct:</span>
+          <span id="g2-correct-answer" class="feedback-value" style="color:#2ecc71"></span>
+        </div>
+        <div class="feedback-row">
+          <span class="feedback-label">Match:</span>
+          <span id="g2-match-score" class="feedback-value"></span>
+        </div>
+        <div id="g2-points-earned" class="points-earned"></div>
+      </div>
+
+      <div class="controls" id="g2-controls">
+        <button id="g2-next-btn" class="btn btn-next hidden">Next →</button>
+        <button id="g2-skip-btn" class="btn btn-skip">Skip</button>
+      </div>
+
+      <p id="g2-error" class="g2-error hidden"></p>
+    </main>
+  </div>
+
+  <!-- GAME 2 RESULTS -->
+  <div id="game2-results-screen" class="screen">
+    <div class="results-card">
+      <div class="results-icon" id="g2-results-icon">🏆</div>
+      <h2>Round Complete!</h2>
+      <div class="final-score-display">
+        <span id="g2-final-score">0</span>
+        <span class="final-score-max" id="g2-final-score-max">/ 30</span>
+      </div>
+      <p id="g2-results-message"></p>
+      <div class="results-breakdown" id="g2-results-breakdown"></div>
+      <div class="results-actions">
+        <button id="g2-retry-btn" class="btn btn-primary">Play Again</button>
+        <button id="g2-review-btn" class="btn btn-secondary">Review Session</button>
+        <button id="g2-home-results-btn" class="btn btn-secondary">← Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODEL PICKER MODAL -->
+  <div id="model-picker-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>Fill in the Blank</h3>
+
+      <p class="modal-section-label">Model</p>
+      <div id="model-list" class="model-list">
+        <div class="model-loading">Loading models...</div>
+      </div>
+
+      <p class="modal-section-label">Difficulty</p>
+      <div class="difficulty-options">
+        <button class="difficulty-btn" data-level="beginner">
+          <span class="diff-label">Beginner</span>
+          <span class="diff-sub">A1 / A2</span>
+        </button>
+        <button class="difficulty-btn selected" data-level="intermediate">
+          <span class="diff-label">Intermediate</span>
+          <span class="diff-sub">B1 / B2</span>
+        </button>
+        <button class="difficulty-btn" data-level="advanced">
+          <span class="diff-label">Advanced</span>
+          <span class="diff-sub">C1 / C2</span>
+        </button>
+      </div>
+
+      <p id="model-error" class="editor-error hidden"></p>
+      <div class="modal-actions">
+        <button id="start-game2-btn" class="btn btn-primary" disabled>Start Game</button>
+        <button id="cancel-model-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORD EDITOR MODAL -->
+  <div id="word-editor-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>Word List</h3>
+      <p class="modal-hint">One pair per line — <code>english,spanish</code></p>
+      <textarea id="word-input" spellcheck="false" autocomplete="off"></textarea>
+      <p id="word-editor-error" class="editor-error hidden"></p>
+      <div class="modal-actions">
+        <button id="save-words-btn" class="btn btn-primary">Save</button>
+        <button id="cancel-words-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SESSION REVIEW MODAL -->
+  <div id="session-review-modal" class="modal-overlay hidden">
+    <div class="modal modal-wide">
+      <div class="review-header">
+        <h3>Session Review</h3>
+        <div class="review-header-actions">
+          <button id="copy-log-btn" class="btn-link">Copy as JSON</button>
+          <button id="close-review-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
+        </div>
+      </div>
+      <p class="modal-hint">Full prompt, raw model output, and your answers — use this to improve the prompt.</p>
+      <div id="review-entries" class="review-entries"></div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+  <script src="game2.js"></script>
+</body>
+</html>
