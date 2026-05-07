@@ -1,7 +1,7 @@
 // ===========================
 // Shared Word List
 // ===========================
-let WORDS = [
+const DEFAULT_WORDS = [
   { english: "house",    spanish: "casa" },
   { english: "dog",      spanish: "perro" },
   { english: "cat",      spanish: "gato" },
@@ -14,6 +14,127 @@ let WORDS = [
   { english: "hello",    spanish: "hola" },
 ];
 
+function loadStoredWords() {
+  try {
+    const raw = localStorage.getItem("sb-words");
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_WORDS;
+  } catch {
+    return DEFAULT_WORDS;
+  }
+}
+
+let WORDS = loadStoredWords();
+
+// ===========================
+// Word Bank (API with localStorage fallback)
+// ===========================
+const BANKS_API = "/api/wordbanks";
+const BANKS_LS_KEY = "sb-saved-banks";
+
+function lsGetBanks() {
+  try { return JSON.parse(localStorage.getItem(BANKS_LS_KEY) || "{}"); }
+  catch { return {}; }
+}
+function lsSetBanks(data) {
+  localStorage.setItem(BANKS_LS_KEY, JSON.stringify(data));
+}
+
+async function banksList() {
+  try {
+    const r = await fetch(BANKS_API);
+    if (r.ok) return r.json();
+  } catch {}
+  return Object.keys(lsGetBanks()).sort();
+}
+
+async function bankGet(name) {
+  try {
+    const r = await fetch(`${BANKS_API}/${encodeURIComponent(name)}`);
+    if (r.ok) return r.json();
+  } catch {}
+  const banks = lsGetBanks();
+  if (!banks[name]) throw new Error("Bank not found");
+  return { name, words: banks[name] };
+}
+
+async function bankSave(name, words) {
+  try {
+    const r = await fetch(`${BANKS_API}/${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ words }),
+    });
+    if (r.ok) {
+      // Also mirror to localStorage so offline loads still work
+      const banks = lsGetBanks(); banks[name] = words; lsSetBanks(banks);
+      return;
+    }
+  } catch {}
+  // Fall back to localStorage only
+  const banks = lsGetBanks(); banks[name] = words; lsSetBanks(banks);
+}
+
+async function bankDelete(name) {
+  try {
+    await fetch(`${BANKS_API}/${encodeURIComponent(name)}`, { method: "DELETE" });
+  } catch {}
+  const banks = lsGetBanks(); delete banks[name]; lsSetBanks(banks);
+}
+
+async function openBanksModal() {
+  const listEl = document.getElementById("banks-list");
+  const modal  = document.getElementById("banks-modal");
+  listEl.innerHTML = '<p class="banks-loading">Loading…</p>';
+  modal.classList.remove("hidden");
+
+  const names = await banksList();
+
+  listEl.innerHTML = "";
+  if (!names.length) {
+    listEl.innerHTML = '<p class="banks-empty">No saved banks yet.<br>Edit your word list and use "Save Bank" to create one.</p>';
+    return;
+  }
+
+  names.forEach(name => {
+    const item = document.createElement("div");
+    item.className = "bank-item";
+
+    const nameBtn = document.createElement("button");
+    nameBtn.className = "bank-name-btn";
+    nameBtn.textContent = name;
+    nameBtn.addEventListener("click", async () => {
+      nameBtn.textContent = "Loading…";
+      nameBtn.disabled = true;
+      try {
+        const data = await bankGet(name);
+        WORDS = data.words;
+        localStorage.setItem("sb-words", JSON.stringify(WORDS));
+        updateHomeWordCount();
+        modal.classList.add("hidden");
+      } catch {
+        nameBtn.textContent = name;
+        nameBtn.disabled = false;
+      }
+    });
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "bank-delete-btn";
+    delBtn.textContent = "×";
+    delBtn.title = "Delete bank";
+    delBtn.addEventListener("click", async () => {
+      await bankDelete(name);
+      item.remove();
+      if (!listEl.querySelector(".bank-item")) {
+        listEl.innerHTML = '<p class="banks-empty">No saved banks yet.</p>';
+      }
+    });
+
+    item.append(nameBtn, delBtn);
+    listEl.appendChild(item);
+  });
+}
+
 const POINTS = { excellent: 3, good: 2, okay: 1, poor: 0 };
 
 // ===========================
@@ -24,6 +145,32 @@ function normalize(text) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+const SPANISH_DIGITS = {
+  "100": "cien",
+  "90": "noventa", "80": "ochenta", "70": "setenta", "60": "sesenta",
+  "50": "cincuenta", "40": "cuarenta", "30": "treinta",
+  "29": "veintinueve", "28": "veintiocho", "27": "veintisiete",
+  "26": "veintis\u00e9is", "25": "veinticinco", "24": "veinticuatro",
+  "23": "veintitr\u00e9s", "22": "veintid\u00f3s", "21": "veintiuno",
+  "20": "veinte", "19": "diecinueve", "18": "dieciocho",
+  "17": "diecisiete", "16": "diecis\u00e9is", "15": "quince",
+  "14": "catorce", "13": "trece", "12": "doce", "11": "once",
+  "10": "diez", "9": "nueve", "8": "ocho", "7": "siete",
+  "6": "seis", "5": "cinco", "4": "cuatro", "3": "tres",
+  "2": "dos", "1": "uno", "0": "cero",
+};
+
+// Sorted longest-first so "10" is replaced before "1"
+const _digitKeys = Object.keys(SPANISH_DIGITS).sort((a, b) => b.length - a.length);
+
+function normalizeSpokenDigits(text) {
+  let out = text;
+  for (const k of _digitKeys) {
+    out = out.replace(new RegExp(`\\b${k}\\b`, "g"), SPANISH_DIGITS[k]);
+  }
+  return out;
 }
 
 function levenshtein(a, b) {
@@ -82,6 +229,10 @@ function showScreen(id) {
 // Home Screen
 // ===========================
 document.getElementById("pick-game1").addEventListener("click", () => {
+  if (isSafariBrowser()) {
+    alert("The Pronunciation game requires Chrome — Safari doesn't support the Web Speech API.\n\nOpen this page in Chrome to use voice input.");
+    return;
+  }
   initRecognition();
   startGame1();
 });
@@ -107,6 +258,23 @@ let recognition = null;
 let isListening = false;
 let resultHandled = false;
 let bestTranscript = "";
+let mediaRecorder = null;
+let audioChunks = [];
+let audioBlobURL = null;
+let recordingId = 0;
+let spanishVoice = null;
+let ttsCurrent = null;
+let pendingSpoken = "";
+
+function loadSpanishVoice() {
+  const pick = () => {
+    const voices = speechSynthesis.getVoices();
+    spanishVoice = voices.find(v => v.lang.startsWith("es")) || null;
+  };
+  pick();
+  speechSynthesis.addEventListener("voiceschanged", pick);
+}
+loadSpanishVoice();
 
 const el = {
   cardCounter:    document.getElementById("card-counter"),
@@ -131,15 +299,34 @@ const el = {
   resultsBreakdown: document.getElementById("results-breakdown"),
   resultsIcon:    document.getElementById("results-icon"),
   retryBtn:       document.getElementById("retry-btn"),
+  playbackBtn:    document.getElementById("playback-btn"),
+  ttsBtn:         document.getElementById("tts-btn"),
+  submitBtn:      document.getElementById("submit-btn"),
+  redoBtn:        document.getElementById("redo-btn"),
 };
 
 // ===========================
 // Speech Recognition
 // ===========================
+function isSafariBrowser() {
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+}
+
 function initRecognition() {
   if (recognition) return true;
+
+  if (isSafariBrowser()) {
+    el.listeningStatus.textContent = "Safari doesn't support voice input. Please open this app in Chrome.";
+    el.speakBtn.disabled = true;
+    return false;
+  }
+
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("Speech recognition requires Chrome."); return false; }
+  if (!SR) {
+    el.listeningStatus.textContent = "Voice input requires Chrome.";
+    el.speakBtn.disabled = true;
+    return false;
+  }
 
   recognition = new SR();
   recognition.lang = "es-ES";
@@ -147,6 +334,7 @@ function initRecognition() {
   recognition.maxAlternatives = 3;
 
   recognition.onstart = () => {
+    console.log("[SR] started");
     isListening = true;
     el.speakBtn.classList.add("listening");
     el.speakLabel.textContent = "Stop";
@@ -160,29 +348,37 @@ function initRecognition() {
       if (event.results[i].isFinal) final += t;
       else interim += t;
     }
+    console.log("[SR] result — interim:", interim, "| final:", final);
     if (final) bestTranscript = final.trim();
     else if (interim) bestTranscript = interim.trim();
     el.listeningStatus.textContent = bestTranscript || "🎤 Speak now...";
     if (final && !resultHandled) {
       resultHandled = true;
       recognition.abort();
-      handleSpokenResult(bestTranscript);
+      showPreview(bestTranscript);
     }
   };
 
   recognition.onerror = (event) => {
+    console.error("[SR] error:", event.error, event);
     stopListening();
     if (event.error === "aborted") return;
-    if (event.error === "no-speech") el.listeningStatus.textContent = "No speech detected. Try again.";
-    else if (event.error === "not-allowed") el.listeningStatus.textContent = "Microphone access denied.";
-    else el.listeningStatus.textContent = `Error: ${event.error}`;
+    const msgs = {
+      "no-speech":        "No speech detected — try again.",
+      "not-allowed":      "Microphone access denied. Allow it in your browser settings.",
+      "network":          "Network error — Speech API needs an internet connection.",
+      "service-not-allowed": "Speech service blocked. Use Chrome and allow mic access.",
+      "audio-capture":    "No microphone found.",
+    };
+    el.listeningStatus.textContent = msgs[event.error] || `Speech error: ${event.error}`;
   };
 
   recognition.onend = () => {
+    console.log("[SR] ended — resultHandled:", resultHandled, "| bestTranscript:", bestTranscript);
     stopListening();
     if (!resultHandled && bestTranscript) {
       resultHandled = true;
-      handleSpokenResult(bestTranscript);
+      showPreview(bestTranscript);
     } else if (!resultHandled) {
       el.listeningStatus.textContent = "No speech detected. Try again.";
     }
@@ -197,6 +393,7 @@ function startListening() {
   bestTranscript = "";
   el.listeningStatus.textContent = "";
   recognition.start();
+  startRecording();
 }
 
 function abortListening() {
@@ -208,6 +405,69 @@ function stopListening() {
   isListening = false;
   el.speakBtn.classList.remove("listening");
   el.speakLabel.textContent = "Speak";
+}
+
+// ===========================
+// Audio Recording (playback)
+// ===========================
+async function startRecording() {
+  const id = ++recordingId;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (recordingId !== id) { stream.getTracks().forEach(t => t.stop()); return; }
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      if (recordingId !== id) return;
+      const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      if (audioBlobURL) URL.revokeObjectURL(audioBlobURL);
+      audioBlobURL = URL.createObjectURL(blob);
+      el.playbackBtn.classList.remove("hidden");
+    };
+    mediaRecorder.start();
+    console.log("[Recorder] started");
+  } catch (err) {
+    console.warn("[Recorder] could not start:", err.message);
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    console.log("[Recorder] stopped");
+  }
+}
+
+function clearRecording() {
+  recordingId++;
+  if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  mediaRecorder = null;
+  audioChunks = [];
+  if (audioBlobURL) { URL.revokeObjectURL(audioBlobURL); audioBlobURL = null; }
+  el.playbackBtn.classList.add("hidden");
+  el.playbackBtn.textContent = "▶ You";
+  speechSynthesis.cancel();
+  ttsCurrent = null;
+  el.ttsBtn.classList.add("hidden");
+  el.ttsBtn.textContent = "🔊 Hear it";
+}
+
+function speakSpanish(text) {
+  if (!text) return;
+  if (speechSynthesis.speaking) {
+    speechSynthesis.cancel();
+    el.ttsBtn.textContent = "🔊 Hear it";
+    return;
+  }
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = "es-ES";
+  if (spanishVoice) utt.voice = spanishVoice;
+  utt.rate = 0.9;
+  utt.onstart = () => { el.ttsBtn.textContent = "⏹ Stop"; };
+  utt.onend = utt.onerror = () => { el.ttsBtn.textContent = "🔊 Hear it"; };
+  speechSynthesis.speak(utt);
 }
 
 // ===========================
@@ -225,8 +485,12 @@ function startGame1(shuffled = false) {
 
 function loadCard() {
   abortListening();
+  clearRecording();
   resultHandled = false;
   bestTranscript = "";
+  pendingSpoken = "";
+  el.submitBtn.classList.add("hidden");
+  el.redoBtn.classList.add("hidden");
 
   const word = deck[currentIndex];
   el.flashcard.classList.remove("flipped");
@@ -244,7 +508,18 @@ function loadCard() {
   el.progressFill.style.width = `${(currentIndex / deck.length) * 100}%`;
 }
 
-function handleSpokenResult(spoken) {
+function showPreview(spoken) {
+  stopRecording();
+  pendingSpoken = normalizeSpokenDigits(spoken);
+  el.listeningStatus.textContent = `You said: "${pendingSpoken}"`;
+  el.speakBtn.disabled = true;
+  el.skipBtn.classList.add("hidden");
+  el.submitBtn.classList.remove("hidden");
+  el.redoBtn.classList.remove("hidden");
+}
+
+function gradeSpoken() {
+  const spoken = pendingSpoken;
   const word = deck[currentIndex];
   const pct = similarityScore(word.spanish, spoken);
   const grade = gradeScore(pct);
@@ -264,10 +539,25 @@ function handleSpokenResult(spoken) {
   el.matchScore.textContent = `${pct}%`;
   el.pointsEarned.textContent = pts === 0 ? "No points" : `+${pts} point${pts !== 1 ? "s" : ""}`;
   el.pointsEarned.style.color = ptColor(pts);
+  ttsCurrent = word.spanish;
+  el.ttsBtn.classList.remove("hidden");
   el.feedbackPanel.classList.remove("hidden");
   el.nextBtn.classList.remove("hidden");
-  el.skipBtn.classList.add("hidden");
-  el.speakBtn.disabled = true;
+  el.submitBtn.classList.add("hidden");
+  el.redoBtn.classList.add("hidden");
+  el.listeningStatus.textContent = "";
+}
+
+function doRedo() {
+  clearRecording();
+  pendingSpoken = "";
+  resultHandled = false;
+  bestTranscript = "";
+  el.submitBtn.classList.add("hidden");
+  el.redoBtn.classList.add("hidden");
+  el.skipBtn.classList.remove("hidden");
+  el.speakBtn.disabled = false;
+  el.listeningStatus.textContent = "";
 }
 
 function g1NextCard() {
@@ -284,6 +574,7 @@ function g1SkipCard() {
 }
 
 function showG1Results() {
+  clearRecording();
   const max = deck.length * 3;
   const pct = Math.round((totalScore / max) * 100);
   el.finalScore.textContent = totalScore;
@@ -316,13 +607,32 @@ function animateScore(scoreEl) {
 
 // Game 1 event listeners
 el.speakBtn.addEventListener("click", () => {
-  if (isListening) { abortListening(); el.listeningStatus.textContent = "Stopped."; }
+  if (isListening) { abortListening(); stopRecording(); el.listeningStatus.textContent = "Stopped."; }
   else startListening();
 });
 el.nextBtn.addEventListener("click", g1NextCard);
 el.skipBtn.addEventListener("click", g1SkipCard);
+el.submitBtn.addEventListener("click", gradeSpoken);
+el.redoBtn.addEventListener("click", doRedo);
 el.retryBtn.addEventListener("click", () => startGame1());
-document.getElementById("g1-home-btn").addEventListener("click", () => { abortListening(); showScreen("home-screen"); });
+document.getElementById("g1-home-btn").addEventListener("click", () => { abortListening(); clearRecording(); showScreen("home-screen"); });
+
+el.playbackBtn.addEventListener("click", () => {
+  if (!audioBlobURL) return;
+  const audio = new Audio(audioBlobURL);
+  el.playbackBtn.textContent = "⏹ Playing...";
+  el.playbackBtn.disabled = true;
+  audio.play();
+  audio.onended = () => {
+    el.playbackBtn.textContent = "▶ You";
+    el.playbackBtn.disabled = false;
+  };
+});
+
+el.ttsBtn.addEventListener("click", () => {
+  speakSpanish(ttsCurrent);
+});
+
 document.getElementById("g1-home-results-btn").addEventListener("click", () => showScreen("home-screen"));
 
 // ===========================
@@ -331,6 +641,7 @@ document.getElementById("g1-home-results-btn").addEventListener("click", () => s
 function openWordEditor() {
   document.getElementById("word-input").value = WORDS.map(w => `${w.english},${w.spanish}`).join("\n");
   document.getElementById("word-editor-error").classList.add("hidden");
+  document.getElementById("save-as-name").value = "";
   document.getElementById("word-editor-modal").classList.remove("hidden");
   document.getElementById("word-input").focus();
 }
@@ -354,8 +665,39 @@ document.getElementById("save-words-btn").addEventListener("click", () => {
   if (errors.length) { errEl.textContent = errors[0]; errEl.classList.remove("hidden"); return; }
   if (!parsed.length) { errEl.textContent = "Add at least one word pair."; errEl.classList.remove("hidden"); return; }
   WORDS = parsed;
+  localStorage.setItem("sb-words", JSON.stringify(WORDS));
   updateHomeWordCount();
   document.getElementById("word-editor-modal").classList.add("hidden");
+});
+
+document.getElementById("save-as-btn").addEventListener("click", async () => {
+  const name = document.getElementById("save-as-name").value.trim();
+  const errEl = document.getElementById("word-editor-error");
+  if (!name) { errEl.textContent = "Enter a name for the bank."; errEl.classList.remove("hidden"); return; }
+
+  const { parsed, errors } = parseWords(document.getElementById("word-input").value);
+  if (errors.length) { errEl.textContent = errors[0]; errEl.classList.remove("hidden"); return; }
+  if (!parsed.length) { errEl.textContent = "Add at least one word pair."; errEl.classList.remove("hidden"); return; }
+
+  const btn = document.getElementById("save-as-btn");
+  btn.textContent = "Saving…";
+  btn.disabled = true;
+  await bankSave(name, parsed);
+  document.getElementById("save-as-name").value = "";
+  btn.textContent = "Saved!";
+  errEl.classList.add("hidden");
+  setTimeout(() => { btn.textContent = "Save Bank"; btn.disabled = false; }, 1500);
+});
+
+document.getElementById("home-banks-btn").addEventListener("click", openBanksModal);
+
+document.getElementById("close-banks-btn").addEventListener("click", () => {
+  document.getElementById("banks-modal").classList.add("hidden");
+});
+
+document.getElementById("banks-modal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("banks-modal"))
+    document.getElementById("banks-modal").classList.add("hidden");
 });
 
 document.getElementById("cancel-words-btn").addEventListener("click", () => {

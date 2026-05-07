@@ -16,6 +16,8 @@
       <div class="home-meta">
         <span><span id="home-word-count">10</span> words loaded</span>
         <button id="home-edit-words-btn" class="btn-link">Edit list</button>
+        <span class="home-meta-divider">·</span>
+        <button id="home-banks-btn" class="btn-link">Saved Banks</button>
       </div>
       <div class="game-options">
         <button class="game-option-card" id="pick-game1">
@@ -27,6 +29,11 @@
           <span class="game-icon">✏️</span>
           <h3>Fill in the Blank</h3>
           <p>Type the missing word in AI-generated Spanish sentences</p>
+        </button>
+        <button class="game-option-card" id="pick-game3">
+          <span class="game-icon">🃏</span>
+          <h3>Flashcards</h3>
+          <p>Flip cards to study English ↔ Spanish at your own pace</p>
         </button>
       </div>
     </div>
@@ -71,11 +78,17 @@
         </div>
         <div id="points-earned" class="points-earned"></div>
       </div>
+      <div class="compare-btns" id="compare-btns-row">
+        <button id="playback-btn" class="btn-compare hidden">▶ You</button>
+        <button id="tts-btn" class="btn-compare btn-compare-ai hidden">🔊 Hear it</button>
+      </div>
       <div class="controls">
         <button id="speak-btn" class="btn btn-speak">
           <span class="mic-icon">🎤</span>
           <span id="speak-label">Speak</span>
         </button>
+        <button id="submit-btn" class="btn btn-primary hidden">Submit ✓</button>
+        <button id="redo-btn" class="btn btn-skip hidden">↺ Redo</button>
         <button id="next-btn" class="btn btn-next hidden">Next →</button>
         <button id="skip-btn" class="btn btn-skip">Skip</button>
       </div>
@@ -101,6 +114,21 @@
     </div>
   </div>
 
+  <!-- GAME 2 PRE-ROUND SCREEN -->
+  <div id="g2-preround-screen" class="screen">
+    <div class="preround-card">
+      <div class="preround-meta">
+        <span id="preround-round-label" class="preround-round-label">Round 1 of 1</span>
+        <span id="preround-difficulty-label" class="difficulty-badge">Intermediate</span>
+      </div>
+      <h2>Word Bank</h2>
+      <p class="preround-hint">These words will appear in this round's sentences — the blank will be one of them.</p>
+      <div id="preround-word-list" class="preround-word-list"></div>
+      <button id="start-round-btn" class="btn btn-primary">Start Round →</button>
+      <button id="preround-home-btn" class="btn btn-secondary">← Home</button>
+    </div>
+  </div>
+
   <!-- GAME 2 SCREEN -->
   <div id="game2-screen" class="screen">
     <header class="game-header">
@@ -114,6 +142,7 @@
         <span id="g2-total-score">0</span>
       </div>
       <span id="g2-difficulty-badge" class="difficulty-badge">Intermediate</span>
+      <button id="g2-wordbank-btn" class="btn-wordbank">Word Bank</button>
     </header>
     <main class="game2-main">
       <div class="sentence-card" id="g2-sentence-card">
@@ -158,7 +187,7 @@
   <div id="game2-results-screen" class="screen">
     <div class="results-card">
       <div class="results-icon" id="g2-results-icon">🏆</div>
-      <h2>Round Complete!</h2>
+      <h2 id="g2-results-title">Round Complete!</h2>
       <div class="final-score-display">
         <span id="g2-final-score">0</span>
         <span class="final-score-max" id="g2-final-score-max">/ 30</span>
@@ -166,7 +195,8 @@
       <p id="g2-results-message"></p>
       <div class="results-breakdown" id="g2-results-breakdown"></div>
       <div class="results-actions">
-        <button id="g2-retry-btn" class="btn btn-primary">Play Again</button>
+        <button id="g2-next-round-btn" class="btn btn-primary hidden">Next Round →</button>
+        <button id="g2-retry-btn" class="btn btn-secondary">Play Again</button>
         <button id="g2-review-btn" class="btn btn-secondary">Review Session</button>
         <button id="g2-home-results-btn" class="btn btn-secondary">← Home</button>
       </div>
@@ -210,14 +240,33 @@
   <!-- WORD EDITOR MODAL -->
   <div id="word-editor-modal" class="modal-overlay hidden">
     <div class="modal">
-      <h3>Word List</h3>
+      <h3>Edit Word List</h3>
       <p class="modal-hint">One pair per line — <code>english,spanish</code></p>
       <textarea id="word-input" spellcheck="false" autocomplete="off"></textarea>
+
+      <p class="modal-section-label">Save as bank</p>
+      <div class="save-as-bar">
+        <input id="save-as-name" type="text" class="save-as-input" placeholder="Bank name..." autocomplete="off" />
+        <button id="save-as-btn" class="btn btn-secondary btn-sm">Save Bank</button>
+      </div>
+
       <p id="word-editor-error" class="editor-error hidden"></p>
       <div class="modal-actions">
         <button id="save-words-btn" class="btn btn-primary">Save</button>
         <button id="cancel-words-btn" class="btn btn-secondary">Cancel</button>
       </div>
+    </div>
+  </div>
+
+  <!-- BANKS PICKER MODAL -->
+  <div id="banks-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="review-header">
+        <h3>Saved Banks</h3>
+        <button id="close-banks-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
+      </div>
+      <p class="modal-hint">Tap a bank to load it instantly.</p>
+      <div id="banks-list" class="banks-list"></div>
     </div>
   </div>
 
@@ -236,7 +285,52 @@
     </div>
   </div>
 
+  <!-- GAME 2 TEST BANK MODAL -->
+  <div id="g2-testbank-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="review-header">
+        <h3 id="testbank-title">Word Bank</h3>
+        <button id="close-testbank-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
+      </div>
+      <p class="modal-hint">The blank in each sentence is one of these words (or a conjugated form).</p>
+      <div id="testbank-word-list" class="testbank-word-list"></div>
+    </div>
+  </div>
+
+  <!-- GAME 3 SCREEN -->
+  <div id="game3-screen" class="screen">
+    <header class="game-header">
+      <button id="g3-home-btn" class="btn-home">← Home</button>
+      <div class="progress-info">
+        <span id="g3-card-counter">1 / 10</span>
+        <div class="progress-bar"><div id="g3-progress-fill"></div></div>
+      </div>
+      <button id="g3-shuffle-btn" class="btn-wordbank">Shuffle</button>
+    </header>
+    <main class="game-main">
+      <div id="g3-flashcard" class="flashcard g3-flashcard">
+        <div class="flashcard-inner">
+          <div class="flashcard-front">
+            <span class="card-label">English</span>
+            <h2 id="g3-front-word"></h2>
+            <span class="card-hint">Tap to flip</span>
+          </div>
+          <div class="flashcard-back">
+            <span class="card-label">Spanish</span>
+            <h2 id="g3-back-word"></h2>
+            <span class="card-hint">Tap to flip back</span>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="g3-prev-btn" class="btn btn-skip">← Prev</button>
+        <button id="g3-next-btn" class="btn btn-next">Next →</button>
+      </div>
+    </main>
+  </div>
+
   <script src="game.js"></script>
   <script src="game2.js"></script>
+  <script src="game3.js"></script>
 </body>
 </html>

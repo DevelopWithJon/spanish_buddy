@@ -13,6 +13,8 @@ let g2Difficulty = "intermediate";
 let g2CurrentAnswer = null;
 let g2CurrentLogEntry = null;
 let g2Prefetch = null;   // Promise<{sentence, answer, raw}> for the next card
+let g2Rounds = [];       // word list split into chunks of 10
+let g2CurrentRound = 0;
 
 const g2el = {
   cardCounter:      document.getElementById("g2-card-counter"),
@@ -43,19 +45,89 @@ const g2el = {
 // ===========================
 // Entry Point
 // ===========================
-function startGame2(model, difficulty, shuffled = false) {
+function startGame2(model, difficulty) {
   g2Model = model;
   g2Difficulty = difficulty;
-  g2Deck = shuffle([...WORDS]);
+  g2Log = [];
+
+  const allWords = shuffle([...WORDS]);
+  g2Rounds = [];
+  for (let i = 0; i < allWords.length; i += 10) {
+    g2Rounds.push(allWords.slice(i, i + 10));
+  }
+  g2CurrentRound = 0;
+  showPreRound();
+}
+
+function showPreRound() {
+  const roundWords = g2Rounds[g2CurrentRound];
+  const totalRounds = g2Rounds.length;
+  const labels = { beginner: "Beginner A1/A2", intermediate: "Intermediate B1/B2", advanced: "Advanced C1/C2" };
+
+  document.getElementById("preround-round-label").textContent =
+    totalRounds > 1 ? `Round ${g2CurrentRound + 1} of ${totalRounds}` : "Word Bank";
+  document.getElementById("preround-difficulty-label").textContent = labels[g2Difficulty];
+
+  const listEl = document.getElementById("preround-word-list");
+  listEl.innerHTML = "";
+  roundWords.forEach(w => {
+    const row = document.createElement("div");
+    row.className = "preround-word-row";
+    const eng = document.createElement("span");
+    eng.className = "preround-english";
+    eng.textContent = w.english;
+    const arrow = document.createElement("span");
+    arrow.className = "preround-arrow";
+    arrow.textContent = "→";
+    const esp = document.createElement("span");
+    esp.className = "preround-spanish";
+    esp.textContent = w.spanish;
+    row.append(eng, arrow, esp);
+    listEl.appendChild(row);
+  });
+
+  showScreen("g2-preround-screen");
+}
+
+function startRound() {
+  g2Deck = [...g2Rounds[g2CurrentRound]];
   g2Index = 0;
   g2Score = 0;
   g2Results = [];
-  g2Log = [];
+  g2Prefetch = null;
   g2el.totalScore.textContent = "0";
+
   const labels = { beginner: "Beginner A1/A2", intermediate: "Intermediate B1/B2", advanced: "Advanced C1/C2" };
-  g2el.difficultyBadge.textContent = labels[difficulty];
+  g2el.difficultyBadge.textContent = labels[g2Difficulty];
+
   showScreen("game2-screen");
   g2LoadCard();
+}
+
+function openTestBank() {
+  const totalRounds = g2Rounds.length;
+  document.getElementById("testbank-title").textContent =
+    totalRounds > 1 ? `Round ${g2CurrentRound + 1} Word Bank` : "Word Bank";
+
+  const listEl = document.getElementById("testbank-word-list");
+  listEl.innerHTML = "";
+  g2Rounds[g2CurrentRound].forEach(w => {
+    const row = document.createElement("div");
+    row.className = "testbank-word-row";
+    const eng = document.createElement("span");
+    eng.className = "testbank-english";
+    eng.textContent = w.english;
+    const arrow = document.createElement("span");
+    arrow.className = "testbank-arrow";
+    arrow.textContent = "→";
+    const esp = document.createElement("span");
+    esp.className = "testbank-spanish";
+    esp.textContent = w.spanish;
+    row.append(eng, arrow, esp);
+    listEl.appendChild(row);
+  });
+
+  document.getElementById("g2-testbank-modal").classList.remove("hidden");
 }
 
 // ===========================
@@ -77,7 +149,9 @@ function g2LoadCard() {
   g2el.submitBtn.disabled = false;
   g2CurrentAnswer = null;
 
-  g2el.cardCounter.textContent = `${g2Index + 1} / ${g2Deck.length}`;
+  g2el.cardCounter.textContent = g2Rounds.length > 1
+    ? `Rd ${g2CurrentRound + 1} · ${g2Index + 1} / ${g2Deck.length}`
+    : `${g2Index + 1} / ${g2Deck.length}`;
   g2el.progressFill.style.width = `${(g2Index / g2Deck.length) * 100}%`;
 
   generateSentence(word.spanish);
@@ -430,6 +504,10 @@ function showG2Results() {
   g2el.finalScore.textContent = g2Score;
   g2el.finalScoreMax.textContent = `/ ${max}`;
 
+  const totalRounds = g2Rounds.length;
+  document.getElementById("g2-results-title").textContent =
+    totalRounds > 1 ? `Round ${g2CurrentRound + 1} of ${totalRounds} Complete!` : "Round Complete!";
+
   if (pct >= 90)      { g2el.resultsIcon.textContent = "🏆"; g2el.resultsMsg.textContent = "Outstanding! Grammar master!"; }
   else if (pct >= 70) { g2el.resultsIcon.textContent = "🌟"; g2el.resultsMsg.textContent = "Great job! Keep it up!"; }
   else if (pct >= 50) { g2el.resultsIcon.textContent = "📚"; g2el.resultsMsg.textContent = "Good effort — practice makes perfect!"; }
@@ -444,6 +522,18 @@ function showG2Results() {
   `).join("");
 
   g2el.progressFill.style.width = "100%";
+
+  const nextRoundBtn = document.getElementById("g2-next-round-btn");
+  const retryBtn = document.getElementById("g2-retry-btn");
+  if (g2CurrentRound + 1 < totalRounds) {
+    nextRoundBtn.textContent = `Next Round ${g2CurrentRound + 2} →`;
+    nextRoundBtn.classList.remove("hidden");
+    retryBtn.textContent = "Restart Game";
+  } else {
+    nextRoundBtn.classList.add("hidden");
+    retryBtn.textContent = "Play Again";
+  }
+
   showScreen("game2-results-screen");
 }
 
@@ -543,9 +633,20 @@ g2el.input.addEventListener("keydown", (e) => {
 g2el.nextBtn.addEventListener("click", g2NextCard);
 g2el.skipBtn.addEventListener("click", g2SkipCard);
 
-document.getElementById("g2-retry-btn").addEventListener("click", () => startGame2(g2Model, g2Difficulty, false));
+document.getElementById("g2-next-round-btn").addEventListener("click", () => { g2CurrentRound++; showPreRound(); });
+document.getElementById("g2-retry-btn").addEventListener("click", () => startGame2(g2Model, g2Difficulty));
 document.getElementById("g2-home-btn").addEventListener("click", () => showScreen("home-screen"));
 document.getElementById("g2-home-results-btn").addEventListener("click", () => showScreen("home-screen"));
+document.getElementById("start-round-btn").addEventListener("click", startRound);
+document.getElementById("preround-home-btn").addEventListener("click", () => showScreen("home-screen"));
+document.getElementById("g2-wordbank-btn").addEventListener("click", openTestBank);
+document.getElementById("close-testbank-btn").addEventListener("click", () => {
+  document.getElementById("g2-testbank-modal").classList.add("hidden");
+});
+document.getElementById("g2-testbank-modal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("g2-testbank-modal"))
+    document.getElementById("g2-testbank-modal").classList.add("hidden");
+});
 document.getElementById("g2-review-btn").addEventListener("click", openSessionReview);
 document.getElementById("copy-log-btn").addEventListener("click", copyLogAsJson);
 document.getElementById("close-review-btn").addEventListener("click", () => {

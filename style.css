@@ -372,6 +372,8 @@ body {
 
 .card-hint { font-size: 0.78rem; color: var(--text-muted); }
 
+.g3-flashcard { cursor: pointer; user-select: none; }
+
 .result-badge {
   font-size: 0.95rem;
   font-weight: 700;
@@ -417,6 +419,44 @@ body {
   padding-top: 8px;
   border-top: 1px solid rgba(255,255,255,0.06);
   margin-top: 4px;
+}
+
+.compare-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-compare {
+  background: rgba(52,152,219,0.12);
+  border: 1px solid rgba(52,152,219,0.3);
+  border-radius: 50px;
+  color: var(--blue);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  transition: all var(--transition);
+}
+
+.btn-compare:hover:not(:disabled) {
+  background: rgba(52,152,219,0.22);
+  border-color: rgba(52,152,219,0.6);
+}
+
+.btn-compare:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-compare-ai {
+  background: rgba(46,204,113,0.12);
+  border-color: rgba(46,204,113,0.3);
+  color: #2ecc71;
+}
+
+.btn-compare-ai:hover:not(:disabled) {
+  background: rgba(46,204,113,0.22);
+  border-color: rgba(46,204,113,0.6);
 }
 
 .controls {
@@ -663,6 +703,36 @@ body {
   border-radius: 4px;
   font-size: 0.82rem;
   color: var(--text);
+}
+
+/* Save-as bar */
+.save-as-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.save-as-input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.save-as-input:focus { border-color: rgba(233,69,96,0.5); }
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 0;
 }
 
 #word-input {
@@ -921,6 +991,183 @@ body {
   max-height: 180px;
   overflow-y: auto;
 }
+
+/* ===========================
+   Game 2 Pre-Round Screen
+=========================== */
+#g2-preround-screen {
+  align-items: center;
+  justify-content: center;
+}
+
+.preround-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 40px 36px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preround-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.preround-round-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.preround-card h2 { font-size: 1.6rem; font-weight: 800; }
+
+.preround-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.preround-word-list {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.preround-word-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  transition: background var(--transition);
+}
+
+.preround-word-row:hover { background: rgba(255,255,255,0.04); }
+.preround-english { color: var(--text-muted); flex: 1; }
+.preround-arrow   { color: var(--accent); font-size: 0.72rem; flex-shrink: 0; }
+.preround-spanish { font-weight: 700; flex: 1; text-align: right; }
+
+/* Word Bank button in game header */
+.btn-wordbank {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-wordbank:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+
+/* Banks picker modal */
+.banks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.bank-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bank-name-btn {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: left;
+  transition: all var(--transition);
+}
+
+.bank-name-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(233,69,96,0.08);
+  transform: translateX(3px);
+}
+
+.bank-name-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.bank-delete-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  height: 38px;
+  line-height: 1;
+  transition: all var(--transition);
+  width: 38px;
+  flex-shrink: 0;
+}
+
+.bank-delete-btn:hover {
+  background: rgba(231,76,60,0.12);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.banks-empty, .banks-loading {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  padding: 12px 0;
+  text-align: center;
+}
+
+.home-meta-divider { color: var(--text-muted); font-size: 0.75rem; }
+
+/* Test bank modal word list */
+.testbank-word-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.testbank-word-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--surface2);
+}
+
+.testbank-english { color: var(--text-muted); flex: 1; }
+.testbank-arrow   { color: var(--accent); font-size: 0.72rem; flex-shrink: 0; }
+.testbank-spanish { font-weight: 700; flex: 1; text-align: right; }
 
 /* ===========================
    Responsive
