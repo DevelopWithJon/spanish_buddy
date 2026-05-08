@@ -18,6 +18,8 @@
         <button id="home-edit-words-btn" class="btn-link">Edit list</button>
         <span class="home-meta-divider">·</span>
         <button id="home-banks-btn" class="btn-link">Saved Banks</button>
+        <span class="home-meta-divider">·</span>
+        <button id="home-history-btn" class="btn-link">History</button>
       </div>
       <div class="game-options">
         <button class="game-option-card" id="pick-game1">
@@ -35,7 +37,26 @@
           <h3>Flashcards</h3>
           <p>Flip cards to study English ↔ Spanish at your own pace</p>
         </button>
+        <button class="game-option-card" id="pick-chat">
+          <span class="game-icon">💬</span>
+          <h3>Chat Buddy</h3>
+          <p>Practice conversational Spanish with an AI tutor</p>
+        </button>
       </div>
+    </div>
+  </div>
+
+  <!-- GAME 1 PRE-ROUND SCREEN -->
+  <div id="g1-preround-screen" class="screen">
+    <div class="preround-card">
+      <div class="preround-meta">
+        <span id="g1-preround-round-label" class="preround-round-label">Round 1 of 1</span>
+      </div>
+      <h2>Word Bank</h2>
+      <p class="preround-hint">These words will appear this round — say each one in Spanish.</p>
+      <div id="g1-preround-word-list" class="preround-word-list"></div>
+      <button id="g1-start-round-btn" class="btn btn-primary">Start Round →</button>
+      <button id="g1-preround-home-btn" class="btn btn-secondary">← Home</button>
     </div>
   </div>
 
@@ -100,7 +121,7 @@
   <div id="results-screen" class="screen">
     <div class="results-card">
       <div class="results-icon" id="results-icon">🏆</div>
-      <h2>Round Complete!</h2>
+      <h2 id="g1-results-title">Round Complete!</h2>
       <div class="final-score-display">
         <span id="final-score">0</span>
         <span class="final-score-max" id="final-score-max">/ 30</span>
@@ -108,7 +129,8 @@
       <p id="results-message"></p>
       <div class="results-breakdown" id="results-breakdown"></div>
       <div class="results-actions">
-        <button id="retry-btn" class="btn btn-primary">Play Again</button>
+        <button id="g1-next-round-btn" class="btn btn-primary hidden">Next Round →</button>
+        <button id="retry-btn" class="btn btn-secondary">Play Again</button>
         <button id="g1-home-results-btn" class="btn btn-secondary">← Home</button>
       </div>
     </div>
@@ -237,6 +259,40 @@
     </div>
   </div>
 
+  <!-- CHAT BUDDY PICKER MODAL -->
+  <div id="chat-picker-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>💬 Chat Buddy</h3>
+
+      <p class="modal-section-label">Model</p>
+      <div id="chat-model-list" class="model-list">
+        <div class="model-loading">Loading models...</div>
+      </div>
+
+      <p class="modal-section-label">Difficulty</p>
+      <div class="difficulty-options" id="chat-difficulty-options">
+        <button class="difficulty-btn" data-level="beginner">
+          <span class="diff-label">Beginner</span>
+          <span class="diff-sub">A1 / A2</span>
+        </button>
+        <button class="difficulty-btn selected" data-level="intermediate">
+          <span class="diff-label">Intermediate</span>
+          <span class="diff-sub">B1 / B2</span>
+        </button>
+        <button class="difficulty-btn" data-level="advanced">
+          <span class="diff-label">Advanced</span>
+          <span class="diff-sub">C1 / C2</span>
+        </button>
+      </div>
+
+      <p id="chat-model-error" class="editor-error hidden"></p>
+      <div class="modal-actions">
+        <button id="start-chat-btn" class="btn btn-primary" disabled>Start Chat →</button>
+        <button id="cancel-chat-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- WORD EDITOR MODAL -->
   <div id="word-editor-modal" class="modal-overlay hidden">
     <div class="modal">
@@ -297,6 +353,20 @@
     </div>
   </div>
 
+  <!-- HISTORY MODAL -->
+  <div id="history-modal" class="modal-overlay hidden">
+    <div class="modal modal-wide">
+      <div class="review-header">
+        <h3>Performance History</h3>
+        <div class="review-header-actions">
+          <button id="history-clear-btn" class="btn-link" style="color:#e74c3c">Clear All</button>
+          <button id="close-history-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
+        </div>
+      </div>
+      <div id="history-list" class="history-list"></div>
+    </div>
+  </div>
+
   <!-- GAME 3 SCREEN -->
   <div id="game3-screen" class="screen">
     <header class="game-header">
@@ -329,8 +399,135 @@
     </main>
   </div>
 
+  <!-- CHAT SCREEN -->
+  <div id="chat-screen" class="screen">
+
+    <header class="chat-header">
+      <button id="chat-home-btn" class="btn-home">← Home</button>
+      <div class="chat-header-info">
+        <span class="chat-title">Chat Buddy</span>
+        <span id="chat-lang-badge" class="chat-lang-badge">🇪🇸 Spanish</span>
+      </div>
+      <button id="chat-tts-btn" class="chat-tts-btn" title="Toggle voice" aria-label="Toggle voice">🔊</button>
+      <button id="chat-menu-btn" class="chat-menu-btn" aria-label="Menu">☰</button>
+
+      <!-- Dropdown anchored to header -->
+      <div id="chat-dropdown" class="chat-dropdown hidden">
+        <button class="chat-menu-item" id="cmenu-history">💬 Chat History</button>
+        <button class="chat-menu-item" id="cmenu-difficulty">🎯 Difficulty</button>
+        <div class="chat-menu-divider"></div>
+        <button class="chat-menu-item chat-menu-end" id="cmenu-end">← End Chat</button>
+      </div>
+    </header>
+
+    <!-- Message list -->
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-empty-state" id="chat-empty">
+        <span class="chat-empty-icon">🇪🇸</span>
+        <p>Your conversation will appear here.</p>
+        <p class="chat-empty-hint">Tap 🎤 or type to start speaking Spanish.</p>
+      </div>
+
+      <!-- AI thinking indicator (hidden until needed) -->
+      <div id="chat-thinking" class="chat-row chat-row-ai hidden">
+        <span class="chat-avatar">🤖</span>
+        <div class="chat-bubble chat-bubble-ai">
+          <div class="thinking-dots"><span></span><span></span><span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input bar -->
+    <div class="chat-input-bar">
+
+      <!-- Idle: mic + text + send -->
+      <div class="chat-input-layer" id="chat-idle-layer">
+        <button class="chat-mic-btn" id="chat-mic-btn" title="Record voice">🎤</button>
+        <input id="chat-text-input" type="text" class="chat-text-input"
+               placeholder="Escribe en español..." autocomplete="off" spellcheck="false" />
+        <button class="chat-send-btn" id="chat-send-btn" title="Send">↑</button>
+      </div>
+
+      <!-- Recording: stop button + live status -->
+      <div class="chat-input-layer hidden" id="chat-recording-layer">
+        <button class="chat-mic-stop-btn" id="chat-stop-btn">⏹</button>
+        <span class="chat-recording-label">
+          <span class="recording-dot"></span>Listening…
+        </span>
+      </div>
+
+      <!-- Review: redo + label + submit -->
+      <div class="chat-input-layer hidden" id="chat-review-layer">
+        <button class="chat-review-redo" id="chat-redo-btn">↺ Redo</button>
+        <span class="chat-review-label" id="chat-review-text">Voice message ready</span>
+        <button class="chat-review-send" id="chat-submit-voice-btn">Send ↑</button>
+      </div>
+
+    </div>
+
+    <!-- Explain overlay (click-outside-to-close) -->
+    <div id="explain-overlay" class="explain-overlay hidden"></div>
+
+    <!-- Explain side panel -->
+    <div id="explain-panel" class="explain-panel">
+      <div class="explain-header">
+        <span class="explain-header-title">💡 Explanation</span>
+        <button id="close-explain-btn" class="explain-close-btn">✕</button>
+      </div>
+      <div class="explain-selected-text" id="explain-selected"></div>
+      <div id="explain-content" class="explain-content">
+        <div class="explain-loading hidden" id="explain-loading">
+          <div class="thinking-dots"><span></span><span></span><span></span></div>
+          <span>Looking it up…</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHAT HISTORY MODAL -->
+  <div id="chat-history-modal" class="modal-overlay hidden">
+    <div class="modal modal-wide">
+      <div class="review-header">
+        <h3>💬 Chat History</h3>
+        <div class="review-header-actions">
+          <button id="chat-history-clear-btn" class="btn-link" style="color:#e74c3c">Clear All</button>
+          <button id="close-chat-history-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
+        </div>
+      </div>
+      <div id="chat-history-list" class="history-list"></div>
+    </div>
+  </div>
+
+  <!-- CHAT MID-SESSION DIFFICULTY MODAL -->
+  <div id="chat-difficulty-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>🎯 Change Difficulty</h3>
+      <p class="modal-hint">Updates the AI tutor's approach for the rest of this session.</p>
+      <div class="difficulty-options" id="chat-mid-difficulty-options">
+        <button class="difficulty-btn" data-level="beginner">
+          <span class="diff-label">Beginner</span>
+          <span class="diff-sub">A1 / A2</span>
+        </button>
+        <button class="difficulty-btn selected" data-level="intermediate">
+          <span class="diff-label">Intermediate</span>
+          <span class="diff-sub">B1 / B2</span>
+        </button>
+        <button class="difficulty-btn" data-level="advanced">
+          <span class="diff-label">Advanced</span>
+          <span class="diff-sub">C1 / C2</span>
+        </button>
+      </div>
+      <div class="modal-actions">
+        <button id="apply-difficulty-btn" class="btn btn-primary">Apply</button>
+        <button id="cancel-difficulty-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script src="game.js"></script>
   <script src="game2.js"></script>
   <script src="game3.js"></script>
+  <script src="chat.js"></script>
 </body>
 </html>

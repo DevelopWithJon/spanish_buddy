@@ -355,7 +355,7 @@ const DIFFICULTY_INSTRUCTIONS = {
   },
 };
 
-function buildSystemPrompt(difficulty) {
+function g2BuildSystemPrompt(difficulty) {
   const d = DIFFICULTY_INSTRUCTIONS[difficulty];
   return `Eres un profesor de español. Escribe UNA oración española natural usando la palabra dada.
 Nivel ${d.label}: ${d.rules}
@@ -364,7 +364,7 @@ Responde SOLO con la oración. Sin etiquetas ni explicaciones.`;
 
 function buildMessages(word) {
   return [
-    { role: "system", content: buildSystemPrompt(g2Difficulty) },
+    { role: "system", content: g2BuildSystemPrompt(g2Difficulty) },
     { role: "user",   content: word },
   ];
 }
@@ -522,6 +522,8 @@ function showG2Results() {
   `).join("");
 
   g2el.progressFill.style.width = "100%";
+  historySave({ game: "fill-in-blank", score: g2Score, max, pct, words: g2Deck.length,
+    difficulty: g2Difficulty, round: g2CurrentRound + 1, totalRounds: g2Rounds.length });
 
   const nextRoundBtn = document.getElementById("g2-next-round-btn");
   const retryBtn = document.getElementById("g2-retry-btn");

@@ -6,6 +6,55 @@ All notable changes to Spanish Buddy are recorded here.
 
 ## [Unreleased]
 
+### Chat Buddy — New Game Mode
+- Conversational Spanish practice with a local Ollama LLM
+- Model picker modal to select the Ollama model and difficulty level (Beginner / Intermediate / Advanced)
+- AI persona: Sofía, a 28-year-old tutor from Sevilla with a consistent backstory (food, family, hobbies, cat) — personal questions get real in-character answers
+- AI sends an opening greeting on session start, offering 3–4 topic choices tailored to the student's CEFR level
+- Difficulty can be changed mid-session via the hamburger menu; a notice is inserted into the chat thread
+- Inline correction tracking: a `[CORRECTIONS:N]` marker is stripped from every AI response and tallied silently
+
+### Chat Buddy — Voice Input
+- 🎤 mic button opens a recording layer with live transcript preview
+- `SpeechRecognition` runs in continuous mode; recording auto-stops after 3 seconds of silence
+- Manual stop button ends recording immediately
+- Review layer shows the transcribed text before sending; ↺ Redo discards and re-records
+
+### Chat Buddy — AI Voice (TTS)
+- Every AI response is read aloud in Spanish (`es-ES`) using the Web Speech Synthesis API
+- Spanish voice is selected automatically from the browser's available voices
+- 🔊 / 🔇 toggle in the chat header mutes/unmutes for the session; speech stops immediately on mute or leaving chat
+
+### Chat Buddy — Explain Feature
+- After each AI message a **💡 Explain** button appears
+- Clicking it enters highlight mode; selecting any text in the bubble fetches a structured explanation from Ollama
+- Explanation panel slides in with: translation, type badge (word / phrase / sentence), explanation, word breakdown, and example sentences
+- Fixed: `innerHTML = ""` was destroying the loading indicator element before the panel could open
+
+### Chat Buddy — Session History
+- Sessions are persisted to `localStorage` (up to 50 most recent)
+- **💬 Chat History** in the hamburger menu shows past sessions with difficulty, message count, corrections, duration, and error-rate percentage (colour-coded green / yellow / red)
+- Interrupted sessions (tab close, crash) are recovered and saved on the next launch
+- Chat history context is injected into the system prompt so the AI adapts to the student's past error rate and trends
+
+### Pronunciation Game — Rounds of 10
+- Words are now split into rounds of up to 10, matching the Fill-in-Blank game
+- A pre-round screen displays the word bank before each round starts
+- Results screen shows a **Next Round →** button when more rounds remain; title reflects current round (e.g. "Round 2 of 3 Complete!")
+- Card counter shows round context when multiple rounds are active (e.g. `Rd 2 · 3 / 10`)
+
+### Pronunciation Game — Speak Button Loading State
+- Pressing **Speak** now shows a 250 ms orange "Get ready…" loading state before the microphone activates
+- Gives users a clear visual cue to wait before speaking, reducing missed first words
+
+### Client-Side Router
+- Every screen now has a URL hash: `#home`, `#pronunciation`, `#pronunciation/setup`, `#pronunciation/results`, `#fill-in-blank`, `#fill-in-blank/setup`, `#fill-in-blank/results`, `#flashcards`, `#chat`
+- Browser back / forward buttons navigate between screens correctly via the History API
+- Deeplink to `#flashcards` auto-starts the game; all other game deeplinks fall back to `#home` since they require setup
+
+### Bug Fixes
+- Fixed `buildSystemPrompt` name collision between `game2.js` and `chat.js` — Game 2's function renamed to `g2BuildSystemPrompt` so the AI persona and chat prompts no longer bleed into sentence generation
+
 ### Game 3 — Flashcards
 - New game mode: tap a card to flip between English and Spanish
 - Cards are drawn from the active word bank in a random order

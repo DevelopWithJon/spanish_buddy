@@ -82,6 +82,78 @@ async function bankDelete(name) {
   const banks = lsGetBanks(); delete banks[name]; lsSetBanks(banks);
 }
 
+// ===========================
+// Performance History
+// ===========================
+const HISTORY_KEY = "sb-history";
+
+function historyGet() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
+  catch { return []; }
+}
+
+function historySave(entry) {
+  const list = historyGet();
+  list.unshift({ ...entry, date: new Date().toISOString() });
+  if (list.length > 100) list.length = 100;
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+}
+
+function historyFormatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    + " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function historyScoreColor(pct) {
+  if (pct >= 80) return "#2ecc71";
+  if (pct >= 50) return "#f39c12";
+  return "#e74c3c";
+}
+
+function openHistoryModal() {
+  const modal   = document.getElementById("history-modal");
+  const listEl  = document.getElementById("history-list");
+  const entries = historyGet();
+
+  listEl.innerHTML = "";
+  if (!entries.length) {
+    listEl.innerHTML = '<p class="banks-empty">No sessions recorded yet.</p>';
+    modal.classList.remove("hidden");
+    return;
+  }
+
+  entries.forEach(e => {
+    const isG1 = e.game === "pronunciation";
+    const icon = isG1 ? "🎤" : "✏️";
+    const name = isG1 ? "Pronunciation" : "Fill in the Blank";
+    const pct  = e.pct ?? Math.round((e.score / e.max) * 100);
+    const sub  = isG1
+      ? `${e.words} words`
+      : `${e.difficulty.charAt(0).toUpperCase() + e.difficulty.slice(1)} · ${e.words} words` +
+        (e.totalRounds > 1 ? ` · Rd ${e.round}/${e.totalRounds}` : "");
+
+    const row = document.createElement("div");
+    row.className = "history-entry";
+    row.innerHTML = `
+      <div class="history-entry-left">
+        <span class="history-icon">${icon}</span>
+        <div class="history-info">
+          <span class="history-game">${name}</span>
+          <span class="history-sub">${sub}</span>
+          <span class="history-date">${historyFormatDate(e.date)}</span>
+        </div>
+      </div>
+      <div class="history-score" style="color:${historyScoreColor(pct)}">
+        <span class="history-pts">${e.score}<span class="history-max">/${e.max}</span></span>
+        <span class="history-pct">${pct}%</span>
+      </div>`;
+    listEl.appendChild(row);
+  });
+
+  modal.classList.remove("hidden");
+}
+
 async function openBanksModal() {
   const listEl = document.getElementById("banks-list");
   const modal  = document.getElementById("banks-modal");
@@ -220,10 +292,56 @@ function shuffle(arr) {
   return a;
 }
 
+// ── Client-side router ────────────────────────────────────────────────────────
+
+const SCREEN_ROUTES = {
+  "home-screen":          "home",
+  "g1-preround-screen":   "pronunciation/setup",
+  "game-screen":          "pronunciation",
+  "results-screen":       "pronunciation/results",
+  "g2-preround-screen":   "fill-in-blank/setup",
+  "game2-screen":         "fill-in-blank",
+  "game2-results-screen": "fill-in-blank/results",
+  "game3-screen":         "flashcards",
+  "chat-screen":          "chat",
+};
+
+const ROUTE_TO_SCREEN = Object.fromEntries(
+  Object.entries(SCREEN_ROUTES).map(([s, r]) => [r, s])
+);
+
+let _routerSuppressPush = false;
+
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
+  if (!_routerSuppressPush) {
+    const route = SCREEN_ROUTES[id] ?? "home";
+    history.pushState({ screenId: id }, "", `#${route}`);
+  }
 }
+
+window.addEventListener("popstate", (e) => {
+  const id = e.state?.screenId ?? "home-screen";
+  _routerSuppressPush = true;
+  showScreen(id);
+  _routerSuppressPush = false;
+});
+
+// Resolve initial URL hash after all scripts have loaded
+document.addEventListener("DOMContentLoaded", () => {
+  const hash = window.location.hash.slice(1);
+  const screenId = ROUTE_TO_SCREEN[hash];
+
+  if (screenId === "game3-screen") {
+    // Flashcards requires no setup — can be deeplinkied directly
+    startGame3();
+  } else {
+    // All other screens need setup modals or in-progress state —
+    // fall back to home, which is already active in the HTML
+    history.replaceState({ screenId: "home-screen" }, "", "#home");
+  }
+});
 
 // ===========================
 // Home Screen
@@ -250,6 +368,8 @@ function updateHomeWordCount() {
 // ===========================
 // Game 1 State
 // ===========================
+let g1Rounds = [];
+let g1CurrentRound = 0;
 let deck = [];
 let currentIndex = 0;
 let totalScore = 0;
@@ -392,8 +512,17 @@ function startListening() {
   resultHandled = false;
   bestTranscript = "";
   el.listeningStatus.textContent = "";
-  recognition.start();
-  startRecording();
+
+  el.speakBtn.disabled = true;
+  el.speakBtn.classList.add("ready");
+  el.speakLabel.textContent = "Get ready…";
+
+  setTimeout(() => {
+    el.speakBtn.disabled = false;
+    el.speakBtn.classList.remove("ready");
+    recognition.start();
+    startRecording();
+  }, 250);
 }
 
 function abortListening() {
@@ -473,8 +602,38 @@ function speakSpanish(text) {
 // ===========================
 // Game 1 Logic
 // ===========================
-function startGame1(shuffled = false) {
-  deck = shuffle([...WORDS]);
+function startGame1() {
+  const allWords = shuffle([...WORDS]);
+  g1Rounds = [];
+  for (let i = 0; i < allWords.length; i += 10) g1Rounds.push(allWords.slice(i, i + 10));
+  g1CurrentRound = 0;
+  showG1PreRound();
+}
+
+function showG1PreRound() {
+  const roundWords = g1Rounds[g1CurrentRound];
+  const totalRounds = g1Rounds.length;
+
+  document.getElementById("g1-preround-round-label").textContent =
+    totalRounds > 1 ? `Round ${g1CurrentRound + 1} of ${totalRounds}` : "Word Bank";
+
+  const listEl = document.getElementById("g1-preround-word-list");
+  listEl.innerHTML = "";
+  roundWords.forEach(w => {
+    const row = document.createElement("div");
+    row.className = "preround-word-row";
+    const eng = document.createElement("span"); eng.className = "preround-english"; eng.textContent = w.english;
+    const arrow = document.createElement("span"); arrow.className = "preround-arrow"; arrow.textContent = "→";
+    const esp = document.createElement("span"); esp.className = "preround-spanish"; esp.textContent = w.spanish;
+    row.append(eng, arrow, esp);
+    listEl.appendChild(row);
+  });
+
+  showScreen("g1-preround-screen");
+}
+
+function startG1Round() {
+  deck = [...g1Rounds[g1CurrentRound]];
   currentIndex = 0;
   totalScore = 0;
   g1Results = [];
@@ -504,7 +663,9 @@ function loadCard() {
   el.resultBadge.textContent = "";
   el.resultBadge.className = "result-badge";
 
-  el.cardCounter.textContent = `${currentIndex + 1} / ${deck.length}`;
+  el.cardCounter.textContent = g1Rounds.length > 1
+    ? `Rd ${g1CurrentRound + 1} · ${currentIndex + 1} / ${deck.length}`
+    : `${currentIndex + 1} / ${deck.length}`;
   el.progressFill.style.width = `${(currentIndex / deck.length) * 100}%`;
 }
 
@@ -593,6 +754,23 @@ function showG1Results() {
   `).join("");
 
   el.progressFill.style.width = "100%";
+  historySave({ game: "pronunciation", score: totalScore, max, pct, words: deck.length,
+    round: g1CurrentRound + 1, totalRounds: g1Rounds.length });
+
+  const totalRounds = g1Rounds.length;
+  const nextRoundBtn = document.getElementById("g1-next-round-btn");
+  document.getElementById("g1-results-title").textContent =
+    totalRounds > 1 ? `Round ${g1CurrentRound + 1} of ${totalRounds} Complete!` : "Round Complete!";
+
+  if (g1CurrentRound + 1 < totalRounds) {
+    nextRoundBtn.textContent = `Next Round ${g1CurrentRound + 2} →`;
+    nextRoundBtn.classList.remove("hidden");
+    el.retryBtn.textContent = "Restart Game";
+  } else {
+    nextRoundBtn.classList.add("hidden");
+    el.retryBtn.textContent = "Play Again";
+  }
+
   showScreen("results-screen");
 }
 
@@ -614,7 +792,10 @@ el.nextBtn.addEventListener("click", g1NextCard);
 el.skipBtn.addEventListener("click", g1SkipCard);
 el.submitBtn.addEventListener("click", gradeSpoken);
 el.redoBtn.addEventListener("click", doRedo);
-el.retryBtn.addEventListener("click", () => startGame1());
+document.getElementById("g1-start-round-btn").addEventListener("click", startG1Round);
+document.getElementById("g1-preround-home-btn").addEventListener("click", () => showScreen("home-screen"));
+document.getElementById("g1-next-round-btn").addEventListener("click", () => { g1CurrentRound++; showG1PreRound(); });
+el.retryBtn.addEventListener("click", () => { initRecognition(); startGame1(); });
 document.getElementById("g1-home-btn").addEventListener("click", () => { abortListening(); clearRecording(); showScreen("home-screen"); });
 
 el.playbackBtn.addEventListener("click", () => {
@@ -690,6 +871,19 @@ document.getElementById("save-as-btn").addEventListener("click", async () => {
 });
 
 document.getElementById("home-banks-btn").addEventListener("click", openBanksModal);
+document.getElementById("home-history-btn").addEventListener("click", openHistoryModal);
+document.getElementById("close-history-btn").addEventListener("click", () => {
+  document.getElementById("history-modal").classList.add("hidden");
+});
+document.getElementById("history-clear-btn").addEventListener("click", () => {
+  if (!confirm("Clear all performance history?")) return;
+  localStorage.removeItem(HISTORY_KEY);
+  document.getElementById("history-list").innerHTML = '<p class="banks-empty">No sessions recorded yet.</p>';
+});
+document.getElementById("history-modal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("history-modal"))
+    document.getElementById("history-modal").classList.add("hidden");
+});
 
 document.getElementById("close-banks-btn").addEventListener("click", () => {
   document.getElementById("banks-modal").classList.add("hidden");
@@ -715,13 +909,92 @@ document.getElementById("word-editor-modal").addEventListener("click", (e) => {
 let selectedModel = null;
 let selectedDifficulty = "intermediate";
 
-// Difficulty button wiring
-document.querySelectorAll(".difficulty-btn").forEach(btn => {
+// Difficulty button wiring — scoped to Game 2 picker
+document.querySelectorAll("#model-picker-modal .difficulty-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".difficulty-btn").forEach(b => b.classList.remove("selected"));
+    document.querySelectorAll("#model-picker-modal .difficulty-btn").forEach(b => b.classList.remove("selected"));
     btn.classList.add("selected");
     selectedDifficulty = btn.dataset.level;
   });
+});
+
+// ===========================
+// Chat Buddy Picker
+// ===========================
+let chatSelectedModel = null;
+let chatSelectedDifficulty = "intermediate";
+
+document.querySelectorAll("#chat-difficulty-options .difficulty-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#chat-difficulty-options .difficulty-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    chatSelectedDifficulty = btn.dataset.level;
+  });
+});
+
+async function openChatPicker() {
+  chatSelectedModel = null;
+  document.getElementById("start-chat-btn").disabled = true;
+  document.getElementById("chat-model-error").classList.add("hidden");
+  document.getElementById("chat-model-list").innerHTML = '<div class="model-loading">Loading models from Ollama...</div>';
+  document.getElementById("chat-picker-modal").classList.remove("hidden");
+
+  try {
+    const res = await fetch("http://localhost:11434/api/tags");
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const models = data.models || [];
+
+    if (!models.length) {
+      document.getElementById("chat-model-list").innerHTML = '<div class="model-loading">No models found. Run: ollama pull llama3.2</div>';
+      return;
+    }
+
+    const listEl = document.getElementById("chat-model-list");
+    listEl.innerHTML = models.map(m => `
+      <button class="model-option" data-model="${m.name}">
+        <span style="font-size:1.4rem">🤖</span>
+        <div>
+          <div class="model-name">${m.name}</div>
+          <div class="model-size">${(m.size / 1e9).toFixed(1)} GB</div>
+        </div>
+      </button>
+    `).join("");
+
+    listEl.querySelectorAll(".model-option").forEach(btn => {
+      btn.addEventListener("click", () => {
+        listEl.querySelectorAll(".model-option").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        chatSelectedModel = btn.dataset.model;
+        document.getElementById("start-chat-btn").disabled = false;
+      });
+    });
+
+    const preferred = listEl.querySelector('[data-model^="llama3.2"]');
+    if (preferred) preferred.click();
+
+  } catch {
+    document.getElementById("chat-model-error").textContent = "Could not connect to Ollama. Make sure it's running.";
+    document.getElementById("chat-model-error").classList.remove("hidden");
+    document.getElementById("chat-model-list").innerHTML = "";
+  }
+}
+
+document.getElementById("pick-chat").addEventListener("click", openChatPicker);
+
+document.getElementById("start-chat-btn").addEventListener("click", () => {
+  if (!chatSelectedModel) return;
+  document.getElementById("chat-picker-modal").classList.add("hidden");
+  startChat(chatSelectedModel, chatSelectedDifficulty);
+});
+
+document.getElementById("cancel-chat-btn").addEventListener("click", () => {
+  document.getElementById("chat-picker-modal").classList.add("hidden");
+});
+
+document.getElementById("chat-picker-modal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("chat-picker-modal"))
+    document.getElementById("chat-picker-modal").classList.add("hidden");
 });
 
 async function openModelPicker() {
