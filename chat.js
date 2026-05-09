@@ -326,55 +326,35 @@ async function sendOpeningMessage() {
 
   let accumulated = "";
   let aiMsg       = null;
+  const msgEl     = document.getElementById("chat-messages");
 
   try {
-    const res = await fetch("http://localhost:11434/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:    chatModel,
-        stream:   true,
-        messages: [{ role: "system", content: chatSystemPrompt }, ...chatHistory],
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Ollama ${res.status}`);
-
-    showThinking(false);
-    aiMsg = createStreamingBubble();
-
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
-    const msgEl   = document.getElementById("chat-messages");
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream: true }).split("\n")) {
-        if (!line.trim()) continue;
-        try {
-          const token = JSON.parse(line).message?.content ?? "";
-          accumulated += token;
-          aiMsg.bubble.textContent = accumulated;
+    accumulated = await aiChat(
+      [{ role: "system", content: chatSystemPrompt }, ...chatHistory],
+      {
+        model: chatModel,
+        onChunk: (_, acc) => {
+          if (!aiMsg) { showThinking(false); aiMsg = createStreamingBubble(); }
+          aiMsg.bubble.textContent = acc;
           msgEl.scrollTop = msgEl.scrollHeight;
-        } catch {}
+        },
       }
-    }
+    );
 
     const corrMatch = accumulated.match(/\[CORRECTIONS:(\d+)\]/);
     if (corrMatch) {
       accumulated = accumulated.replace(/\[CORRECTIONS:\d+\]\s*$/, "").trimEnd();
-      aiMsg.bubble.textContent = accumulated;
+      if (aiMsg) aiMsg.bubble.textContent = accumulated;
     }
 
     chatHistory.push({ role: "assistant", content: accumulated });
-    finalizeAIBubble(aiMsg.wrap, aiMsg.bubble);
+    if (aiMsg) finalizeAIBubble(aiMsg.wrap, aiMsg.bubble);
     speakText(accumulated);
 
   } catch {
     showThinking(false);
     if (!aiMsg) aiMsg = createStreamingBubble();
-    aiMsg.bubble.textContent = "⚠ Could not reach Ollama. Make sure it's running.";
+    aiMsg.bubble.textContent = "⚠ Could not connect to AI. Check your settings.";
     aiMsg.bubble.style.color = "#e74c3c";
   } finally {
     chatIsResponding = false;
@@ -395,23 +375,8 @@ Valid error types: "spelling", "verb", "syntax", "grammar"`;
 
 async function fetchCorrection(userText, contentEl) {
   try {
-    const res = await fetch("http://localhost:11434/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:  chatModel,
-        stream: false,
-        messages: [
-          { role: "system", content: CORRECTION_SYSTEM },
-          { role: "user",   content: userText },
-        ],
-      }),
-    });
-
-    if (!res.ok) return;
-    const data = await res.json();
-    const raw  = (data.message?.content ?? "")
-      .replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const raw = await aiGenerate(CORRECTION_SYSTEM, userText, { model: chatModel })
+      .then(r => r.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim());
 
     const correction = JSON.parse(raw);
     if (!correction.hasErrors || !correction.errors.length) return;
@@ -471,59 +436,38 @@ async function sendToAI(userText) {
   showThinking(true);
 
   let accumulated = "";
-  let aiMsg       = null;   // { bubble, wrap }
+  let aiMsg       = null;
+  const msgEl     = document.getElementById("chat-messages");
 
   try {
-    const res = await fetch("http://localhost:11434/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:    chatModel,
-        stream:   true,
-        messages: [{ role: "system", content: chatSystemPrompt }, ...chatHistory],
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Ollama ${res.status}`);
-
-    showThinking(false);
-    aiMsg = createStreamingBubble();
-
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
-    const msgEl   = document.getElementById("chat-messages");
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream: true }).split("\n")) {
-        if (!line.trim()) continue;
-        try {
-          const token = JSON.parse(line).message?.content ?? "";
-          accumulated += token;
-          aiMsg.bubble.textContent = accumulated;
+    accumulated = await aiChat(
+      [{ role: "system", content: chatSystemPrompt }, ...chatHistory],
+      {
+        model: chatModel,
+        onChunk: (_, acc) => {
+          if (!aiMsg) { showThinking(false); aiMsg = createStreamingBubble(); }
+          aiMsg.bubble.textContent = acc;
           msgEl.scrollTop = msgEl.scrollHeight;
-        } catch {}
+        },
       }
-    }
+    );
 
-    // Strip correction marker and tally
     const corrMatch = accumulated.match(/\[CORRECTIONS:(\d+)\]/);
     if (corrMatch) {
       chatSessionCorrections += parseInt(corrMatch[1], 10);
       accumulated = accumulated.replace(/\[CORRECTIONS:\d+\]\s*$/, "").trimEnd();
-      aiMsg.bubble.textContent = accumulated;
+      if (aiMsg) aiMsg.bubble.textContent = accumulated;
     }
 
     chatHistory.push({ role: "assistant", content: accumulated });
     saveCurrentSession();
-    finalizeAIBubble(aiMsg.wrap, aiMsg.bubble);
+    if (aiMsg) finalizeAIBubble(aiMsg.wrap, aiMsg.bubble);
     speakText(accumulated);
 
   } catch {
     showThinking(false);
     if (!aiMsg) aiMsg = createStreamingBubble();
-    aiMsg.bubble.textContent = "⚠ Could not reach Ollama. Make sure it's running.";
+    aiMsg.bubble.textContent = "⚠ Could not connect to AI. Check your settings.";
     aiMsg.bubble.style.color = "#e74c3c";
   } finally {
     chatIsResponding = false;
@@ -960,23 +904,8 @@ async function fetchExplanation(selectedText) {
   showExplainPanel(selectedText);
 
   try {
-    const res = await fetch("http://localhost:11434/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:  chatModel,
-        stream: false,
-        messages: [
-          { role: "system", content: EXPLAIN_SYSTEM },
-          { role: "user",   content: selectedText },
-        ],
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Ollama ${res.status}`);
-    const data = await res.json();
-    const raw  = (data.message?.content ?? "")
-      .replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const raw = await aiGenerate(EXPLAIN_SYSTEM, selectedText, { model: chatModel })
+      .then(r => r.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim());
     const parsed = JSON.parse(raw);
     renderExplainContent(parsed);
 

@@ -955,22 +955,31 @@ async function openChatPicker() {
   chatSelectedModel = null;
   document.getElementById("start-chat-btn").disabled = true;
   document.getElementById("chat-model-error").classList.add("hidden");
-  document.getElementById("chat-model-list").innerHTML = '<div class="model-loading">Loading models from Ollama...</div>';
+
+  const s = settingsGet();
+  const provider = s.provider || "ollama";
+  const loadingMsg = provider === "ollama"
+    ? "Loading models from Ollama..."
+    : `Using ${PROVIDER_LABELS[provider] || provider}`;
+  document.getElementById("chat-model-list").innerHTML = `<div class="model-loading">${loadingMsg}</div>`;
   document.getElementById("chat-picker-modal").classList.remove("hidden");
 
-  try {
-    const models = await ollamaFetchModels();
-    populateModelList(
-      document.getElementById("chat-model-list"),
-      document.getElementById("start-chat-btn"),
-      (model) => { chatSelectedModel = model; }
-    );
-  } catch {
-    document.getElementById("chat-model-error").textContent =
-      "Could not connect to Ollama. Start it with: ollama serve";
-    document.getElementById("chat-model-error").classList.remove("hidden");
-    document.getElementById("chat-model-list").innerHTML = "";
+  if (provider === "ollama") {
+    try {
+      await ollamaFetchModels();
+    } catch {
+      document.getElementById("chat-model-error").textContent =
+        "Could not connect to Ollama. Start it with: ollama serve";
+      document.getElementById("chat-model-error").classList.remove("hidden");
+      document.getElementById("chat-model-list").innerHTML = "";
+      return;
+    }
   }
+  populateModelList(
+    document.getElementById("chat-model-list"),
+    document.getElementById("start-chat-btn"),
+    (model) => { chatSelectedModel = model; }
+  );
 }
 
 document.getElementById("pick-chat").addEventListener("click", openChatPicker);
@@ -994,22 +1003,31 @@ async function openModelPicker() {
   selectedModel = null;
   document.getElementById("start-game2-btn").disabled = true;
   document.getElementById("model-error").classList.add("hidden");
-  document.getElementById("model-list").innerHTML = '<div class="model-loading">Loading models from Ollama...</div>';
+
+  const s = settingsGet();
+  const provider = s.provider || "ollama";
+  const loadingMsg = provider === "ollama"
+    ? "Loading models from Ollama..."
+    : `Using ${PROVIDER_LABELS[provider] || provider}`;
+  document.getElementById("model-list").innerHTML = `<div class="model-loading">${loadingMsg}</div>`;
   document.getElementById("model-picker-modal").classList.remove("hidden");
 
-  try {
-    await ollamaFetchModels();
-    populateModelList(
-      document.getElementById("model-list"),
-      document.getElementById("start-game2-btn"),
-      (model) => { selectedModel = model; }
-    );
-  } catch {
-    document.getElementById("model-error").textContent =
-      "Could not connect to Ollama. Start it with: ollama serve";
-    document.getElementById("model-error").classList.remove("hidden");
-    document.getElementById("model-list").innerHTML = "";
+  if (provider === "ollama") {
+    try {
+      await ollamaFetchModels();
+    } catch {
+      document.getElementById("model-error").textContent =
+        "Could not connect to Ollama. Start it with: ollama serve";
+      document.getElementById("model-error").classList.remove("hidden");
+      document.getElementById("model-list").innerHTML = "";
+      return;
+    }
   }
+  populateModelList(
+    document.getElementById("model-list"),
+    document.getElementById("start-game2-btn"),
+    (model) => { selectedModel = model; }
+  );
 }
 
 document.getElementById("start-game2-btn").addEventListener("click", () => {
@@ -1040,20 +1058,58 @@ async function ollamaFetchModels() {
 }
 
 async function checkOllama() {
+  const s = settingsGet();
+  const provider = s.provider || "ollama";
+
+  if (provider !== "ollama") {
+    if (!s.apiKey) {
+      showOllamaBanner(
+        `No API key for ${PROVIDER_LABELS[provider] || provider} — AI features disabled`,
+        "Add your API key in ⚙️ Settings.",
+        null,
+        false
+      );
+    } else {
+      hideOllamaBanner();
+    }
+    return;
+  }
+
   try {
     await ollamaFetchModels();
     ollamaOnline = true;
     hideOllamaBanner();
   } catch {
     ollamaOnline = false;
-    ollamaModelCache = null;   // allow retry to re-fetch
-    showOllamaBanner();
+    ollamaModelCache = null;
+    showOllamaBanner(
+      "Ollama isn't running — AI games won't work",
+      "Start it in your terminal:",
+      "ollama serve",
+      true
+    );
   }
 }
 
-function showOllamaBanner() {
-  const el = document.getElementById("ollama-banner");
-  if (el) el.style.display = "";
+function showOllamaBanner(title, hint, code, showRetry = true) {
+  const bannerEl = document.getElementById("ollama-banner");
+  if (!bannerEl) return;
+  if (title) {
+    const t = bannerEl.querySelector(".ollama-banner-title");
+    if (t) t.textContent = title;
+  }
+  if (hint) {
+    const h = bannerEl.querySelector(".ollama-banner-hint");
+    if (h) h.textContent = hint;
+  }
+  const codeEl = bannerEl.querySelector(".ollama-banner-code");
+  if (codeEl) {
+    if (code) { codeEl.textContent = code; codeEl.style.display = ""; }
+    else codeEl.style.display = "none";
+  }
+  const retryBtn = document.getElementById("ollama-retry-btn");
+  if (retryBtn) retryBtn.style.display = showRetry ? "" : "none";
+  bannerEl.style.display = "";
 }
 
 function hideOllamaBanner() {
@@ -1075,8 +1131,31 @@ document.getElementById("ollama-retry-btn")?.addEventListener("click", async () 
 // Shared Model Picker Helper (Features 1 & 2)
 // ===========================
 function populateModelList(listEl, startBtn, onSelect) {
+  const s = settingsGet();
+  const provider = s.provider || "ollama";
+
+  if (provider !== "ollama") {
+    const model = s.cloudModel || CLOUD_MODELS[provider]?.[0];
+    if (!model || !s.apiKey) {
+      listEl.innerHTML = '<div class="model-loading">Configure API key in ⚙️ Settings first.</div>';
+      return;
+    }
+    listEl.innerHTML = `
+      <button class="model-option selected" data-model="${model}">
+        <span style="font-size:1.4rem">${PROVIDER_ICONS[provider] || "🤖"}</span>
+        <div>
+          <div class="model-name">${model}</div>
+          <div class="model-size">${PROVIDER_LABELS[provider] || provider}</div>
+        </div>
+      </button>`;
+    onSelect(model);
+    startBtn.disabled = false;
+    return;
+  }
+
+  // Ollama path
   const models = ollamaModelCache || [];
-  const defaultModel = settingsGet().defaultModel;
+  const defaultModel = s.defaultModel;
 
   if (!models.length) {
     listEl.innerHTML = '<div class="model-loading">No models found. Run: ollama pull llama3.2</div>';
@@ -1216,8 +1295,42 @@ function applySettingsToUI() {
   chatSelectedDifficulty = s.defaultDifficulty;
 }
 
+async function refreshSettingsModelSelect(provider, s) {
+  const modelSelect = document.getElementById("settings-model-select");
+  if (!modelSelect) return;
+
+  if (provider !== "ollama") {
+    const models = CLOUD_MODELS[provider] || [];
+    modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
+    if (s.cloudModel) modelSelect.value = s.cloudModel;
+    return;
+  }
+
+  modelSelect.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const models = await ollamaFetchModels();
+    modelSelect.innerHTML = '<option value="">No default (auto-select)</option>' +
+      models.map(m => `<option value="${m.name}">${m.name}</option>`).join("");
+    if (s.defaultModel) modelSelect.value = s.defaultModel;
+  } catch {
+    modelSelect.innerHTML = '<option value="">Ollama offline — no models</option>';
+  }
+}
+
 async function openSettingsModal() {
   const s = settingsGet();
+  const provider = s.provider || "ollama";
+
+  // Provider buttons
+  document.querySelectorAll(".settings-provider-btn").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.provider === provider);
+  });
+
+  // API key row
+  const apikeyRow = document.getElementById("settings-apikey-row");
+  if (apikeyRow) apikeyRow.style.display = provider === "ollama" ? "none" : "";
+  const apikeyInput = document.getElementById("settings-apikey-input");
+  if (apikeyInput) apikeyInput.value = s.apiKey || "";
 
   // TTS slider
   const slider = document.getElementById("settings-tts-slider");
@@ -1234,16 +1347,7 @@ async function openSettingsModal() {
   });
 
   // Model dropdown
-  const modelSelect = document.getElementById("settings-model-select");
-  modelSelect.innerHTML = '<option value="">Loading…</option>';
-  try {
-    const models = await ollamaFetchModels();
-    modelSelect.innerHTML = '<option value="">No default (auto-select)</option>' +
-      models.map(m => `<option value="${m.name}">${m.name}</option>`).join("");
-    if (s.defaultModel) modelSelect.value = s.defaultModel;
-  } catch {
-    modelSelect.innerHTML = '<option value="">Ollama offline — no models</option>';
-  }
+  await refreshSettingsModelSelect(provider, s);
 
   document.getElementById("settings-modal").classList.remove("hidden");
 }
@@ -1262,15 +1366,37 @@ document.querySelectorAll("#settings-difficulty-options .difficulty-btn").forEac
   });
 });
 
+document.querySelectorAll(".settings-provider-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".settings-provider-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    const prov = btn.dataset.provider;
+    const apikeyRow = document.getElementById("settings-apikey-row");
+    if (apikeyRow) apikeyRow.style.display = prov === "ollama" ? "none" : "";
+    const s = settingsGet();
+    refreshSettingsModelSelect(prov, { ...s, provider: prov });
+  });
+});
+
 document.getElementById("save-settings-btn").addEventListener("click", () => {
   const ttsSpeed = parseFloat(document.getElementById("settings-tts-slider").value);
   const roundSize = parseInt(document.getElementById("settings-round-select").value, 10);
-  const defaultModel = document.getElementById("settings-model-select").value || null;
   const diffBtn = document.querySelector("#settings-difficulty-options .difficulty-btn.selected");
   const defaultDifficulty = diffBtn?.dataset.level ?? "intermediate";
 
-  settingsSave({ ttsSpeed, roundSize, defaultModel, defaultDifficulty });
+  const providerBtn = document.querySelector(".settings-provider-btn.selected");
+  const provider = providerBtn?.dataset.provider ?? "ollama";
+  const apiKey = document.getElementById("settings-apikey-input")?.value.trim() ?? "";
+  const modelVal = document.getElementById("settings-model-select")?.value || null;
+
+  const updates = { ttsSpeed, roundSize, defaultDifficulty, provider, apiKey };
+  if (provider === "ollama") updates.defaultModel = modelVal;
+  else updates.cloudModel = modelVal;
+
+  settingsSave(updates);
+  ollamaModelCache = null;  // allow re-fetch if provider changed
   applySettingsToUI();
+  checkOllama();
   document.getElementById("settings-modal").classList.add("hidden");
 });
 

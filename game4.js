@@ -2,8 +2,6 @@
 // Game 4 — Noun Gender Challenge
 // ===========================
 
-const G4_OLLAMA_URL = "http://localhost:11434/api/chat";
-
 let g4Model = null;
 let g4SelectedModel = null;
 let g4Deck = [];
@@ -37,6 +35,19 @@ const g4el = {
 // Model Picker
 // ===========================
 async function openG4ModelPicker() {
+  const s = settingsGet();
+  const provider = s.provider || "ollama";
+
+  if (provider !== "ollama") {
+    const model = aiActiveModel();
+    if (!model || !s.apiKey) {
+      alert(`No API key configured for ${PROVIDER_LABELS[provider] || provider}. Add one in ⚙️ Settings.`);
+      return;
+    }
+    startGame4(model);
+    return;
+  }
+
   g4SelectedModel = null;
   document.getElementById("start-game4-btn").disabled = true;
   document.getElementById("g4-model-error").classList.add("hidden");
@@ -94,10 +105,7 @@ async function startGame4(model) {
 // ===========================
 async function g4FetchNouns() {
   const wordList = WORDS.map(w => `${w.spanish} (${w.english})`).join(", ");
-  const messages = [
-    {
-      role: "system",
-      content: `You are a Spanish grammar expert. From the given Spanish words, identify ONLY the nouns.
+  const systemMsg = `You are a Spanish grammar expert. From the given Spanish words, identify ONLY the nouns.
 For each noun, determine its grammatical gender and plural form.
 
 Respond ONLY with a valid JSON array — no explanation, no markdown, no code fences:
@@ -107,47 +115,10 @@ Rules:
 - Only include words that are clearly nouns (not verbs, adjectives, adverbs, or interjections)
 - Only include nouns with a clear, unambiguous gender ("masculine" or "feminine")
 - The "spanish" and "plural" fields must contain ONLY the bare noun — never include an article (el, la, los, las, un, una, unos, unas). Write "perro" not "el perro", "mesa" not "la mesa"
-- Return an empty array [] if no nouns are found`
-    },
-    { role: "user", content: wordList }
-  ];
+- Return an empty array [] if no nouns are found`;
 
-  const res = await fetch(G4_OLLAMA_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: g4Model,
-      messages,
-      stream: true,
-      keep_alive: "10m",
-      options: { temperature: 0.1, num_predict: 600 },
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Ollama responded with ${res.status}`);
-
-  const raw = await g4ReadStream(res);
+  const raw = await aiGenerate(systemMsg, wordList, { model: g4Model, temperature: 0.1, maxTokens: 600 });
   return g4ParseNounResponse(raw);
-}
-
-async function g4ReadStream(res) {
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        const obj = JSON.parse(line);
-        full += obj.message?.content || "";
-      } catch { /* incomplete chunk */ }
-    }
-  }
-  return full.trim();
 }
 
 const G4_ARTICLE_RE = /^(el|la|los|las|un|una|unos|unas)\s+/i;

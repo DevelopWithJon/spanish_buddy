@@ -2,8 +2,6 @@
 // Game 5 — Verb Conjugation Challenge
 // ===========================
 
-const G5_OLLAMA_URL = "http://localhost:11434/api/chat";
-
 const G5_PRONOUNS = [
   { display: "yo",    key: "yo" },
   { display: "tú",    key: "tu" },
@@ -46,6 +44,19 @@ const g5el = {
 // Model Picker
 // ===========================
 async function openG5ModelPicker() {
+  const s = settingsGet();
+  const provider = s.provider || "ollama";
+
+  if (provider !== "ollama") {
+    const model = aiActiveModel();
+    if (!model || !s.apiKey) {
+      alert(`No API key configured for ${PROVIDER_LABELS[provider] || provider}. Add one in ⚙️ Settings.`);
+      return;
+    }
+    startGame5(model);
+    return;
+  }
+
   g5SelectedModel = null;
   document.getElementById("start-game5-btn").disabled = true;
   document.getElementById("g5-model-error").classList.add("hidden");
@@ -103,10 +114,7 @@ async function startGame5(model) {
 // ===========================
 async function g5FetchVerbs() {
   const wordList = WORDS.map(w => `${w.spanish} (${w.english})`).join(", ");
-  const messages = [
-    {
-      role: "system",
-      content: `You are a Spanish grammar expert. From the given Spanish words, identify ONLY the verbs (infinitive forms).
+  const systemMsg = `You are a Spanish grammar expert. From the given Spanish words, identify ONLY the verbs (infinitive forms).
 For each verb, provide its present-tense indicative conjugations for yo, tú, él/ella, and ellos/ellas.
 
 Respond ONLY with a valid JSON array — no explanation, no markdown, no code fences:
@@ -115,47 +123,10 @@ Respond ONLY with a valid JSON array — no explanation, no markdown, no code fe
 Rules:
 - Only include words that are clearly verbs in infinitive form
 - Only include verbs where you are confident in all four conjugations
-- Return an empty array [] if no verbs are found`
-    },
-    { role: "user", content: wordList }
-  ];
+- Return an empty array [] if no verbs are found`;
 
-  const res = await fetch(G5_OLLAMA_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: g5Model,
-      messages,
-      stream: true,
-      keep_alive: "10m",
-      options: { temperature: 0.1, num_predict: 600 },
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Ollama responded with ${res.status}`);
-
-  const raw = await g5ReadStream(res);
+  const raw = await aiGenerate(systemMsg, wordList, { model: g5Model, temperature: 0.1, maxTokens: 600 });
   return g5ParseVerbResponse(raw);
-}
-
-async function g5ReadStream(res) {
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        const obj = JSON.parse(line);
-        full += obj.message?.content || "";
-      } catch { /* incomplete chunk */ }
-    }
-  }
-  return full.trim();
 }
 
 function g5ParseVerbResponse(raw) {

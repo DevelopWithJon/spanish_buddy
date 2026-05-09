@@ -4,6 +4,9 @@
 const SETTINGS_KEY = "spanishBuddy_settings";
 
 const SETTINGS_DEFAULTS = {
+  provider:           "ollama",
+  apiKey:             "",
+  cloudModel:         null,
   defaultModel:       null,
   ttsSpeed:           0.9,
   defaultDifficulty:  "intermediate",

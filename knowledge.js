@@ -118,6 +118,13 @@ function kbSetStatus(msg, isError = false) {
 // ===========================
 async function kbHandleFiles(files) {
   if (kbProcessing) return;
+
+  const s = settingsGet();
+  if ((s.provider || "ollama") !== "ollama") {
+    kbSetStatus("Knowledge Hub requires Ollama + llava. Switch to Ollama in ⚙️ Settings.", true);
+    return;
+  }
+
   kbProcessing = true;
   kbel.uploadArea.classList.add("kb-uploading");
 

@@ -798,7 +798,35 @@
         <button id="close-settings-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
       </div>
 
-      <p class="settings-section-label">Default Model</p>
+      <p class="settings-section-label">AI Provider</p>
+      <div class="settings-provider-grid" id="settings-provider-grid">
+        <button class="settings-provider-btn selected" data-provider="ollama">
+          <span class="settings-provider-icon">🖥</span>
+          <span>Ollama</span>
+          <span class="settings-provider-sub">Local</span>
+        </button>
+        <button class="settings-provider-btn" data-provider="openai">
+          <span class="settings-provider-icon">🤖</span>
+          <span>OpenAI</span>
+        </button>
+        <button class="settings-provider-btn" data-provider="gemini">
+          <span class="settings-provider-icon">💎</span>
+          <span>Gemini</span>
+        </button>
+        <button class="settings-provider-btn" data-provider="claude">
+          <span class="settings-provider-icon">🟣</span>
+          <span>Claude</span>
+        </button>
+      </div>
+
+      <div id="settings-apikey-row" style="display:none">
+        <p class="settings-section-label" style="margin-top:14px">API Key</p>
+        <input type="password" id="settings-apikey-input" class="settings-input"
+               placeholder="Paste your API key here…" autocomplete="off" spellcheck="false" />
+        <p class="settings-apikey-note">🔒 Stored locally in your browser only, never sent to our servers.</p>
+      </div>
+
+      <p class="settings-section-label" style="margin-top:14px" id="settings-model-label">Default Model</p>
       <select id="settings-model-select" class="settings-select">
         <option value="">Loading models…</option>
       </select>
@@ -845,6 +873,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="settings.js"></script>
+  <script src="ai.js"></script>
   <script src="game.js"></script>
   <script src="game2.js"></script>
   <script src="game3.js"></script>

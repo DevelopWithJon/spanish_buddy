@@ -1,7 +1,6 @@
 // ===========================
 // Game 2 — Fill in the Blank
 // ===========================
-const OLLAMA_URL = "http://localhost:11434/api/chat";
 
 let g2Deck = [];
 let g2Index = 0;
@@ -164,19 +163,7 @@ function g2LoadCard() {
 // ===========================
 async function fetchSentence(spanishWord) {
   const messages = buildMessages(spanishWord);
-  const res = await fetch(OLLAMA_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: g2Model,
-      messages,
-      stream: true,
-      keep_alive: "10m",
-      options: { temperature: 0.7, num_predict: 80 },
-    }),
-  });
-  if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
-  const raw = await readStream(res, false); // false = no UI update during prefetch
+  const raw = await aiChat(messages, { model: g2Model, temperature: 0.7, maxTokens: 80 });
   const parsed = extractBlank(raw, spanishWord);
   return { raw, parsed };
 }
@@ -186,36 +173,6 @@ function prefetchNext() {
   if (nextIndex >= g2Deck.length) return;
   const nextWord = g2Deck[nextIndex].spanish;
   g2Prefetch = fetchSentence(nextWord).catch(() => null);
-}
-
-// ===========================
-// Stream Reader
-// ===========================
-async function readStream(res, showUI = true) {
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        const obj = JSON.parse(line);
-        const token = obj.message?.content || "";
-        full += token;
-        if (showUI) {
-          const preview = full.replace(/_{2,}/g, "___").slice(0, 60);
-          const span = g2el.loading.querySelector("span");
-          if (span) span.textContent = preview || "Generating...";
-        }
-      } catch { /* incomplete JSON chunk */ }
-    }
-  }
-  return full.trim();
 }
 
 // ===========================
@@ -257,18 +214,18 @@ async function generateSentence(spanishWord) {
       return;
     }
 
-    // No prefetch — stream live
-    const res = await fetch(OLLAMA_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: g2Model, messages, stream: true, keep_alive: "10m",
-        options: { temperature: 0.7, num_predict: 80 },
-      }),
+    // No prefetch — stream live with UI preview
+    const loadingSpan = g2el.loading.querySelector("span");
+    const raw = await aiChat(messages, {
+      model: g2Model,
+      temperature: 0.7,
+      maxTokens: 80,
+      onChunk: (_, acc) => {
+        if (loadingSpan) {
+          loadingSpan.textContent = acc.replace(/_{2,}/g, "___").slice(0, 60) || "Generating...";
+        }
+      },
     });
-
-    if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
-    const raw = await readStream(res, true);
     g2CurrentLogEntry.rawResponse = raw;
 
     const parsed = extractBlank(raw, spanishWord);
@@ -292,23 +249,21 @@ async function retryGenerate(spanishWord) {
   g2CurrentLogEntry.retryPrompt = messages;
 
   try {
-    const res = await fetch(OLLAMA_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: g2Model,
-        messages,
-        stream: true,
-        keep_alive: "10m",
-        options: { temperature: 0.3, num_predict: 80 },
-      }),
+    const loadingSpan = g2el.loading.querySelector("span");
+    const raw = await aiChat(messages, {
+      model: g2Model,
+      temperature: 0.3,
+      maxTokens: 80,
+      onChunk: (_, acc) => {
+        if (loadingSpan) {
+          loadingSpan.textContent = acc.replace(/_{2,}/g, "___").slice(0, 60) || "Generating...";
+        }
+      },
     });
-    const raw = await readStream(res, true);
     g2CurrentLogEntry.retryRawResponse = raw;
 
     const parsed = extractBlank(raw, spanishWord);
     if (!parsed) {
-      // Fallback: use raw sentence as-is, answer is the target word
       const fallbackSentence = raw.split("\n")[0].trim() || `Usa la palabra: ${spanishWord}`;
       g2CurrentLogEntry.parsedSentence = fallbackSentence + ` (respuesta: ${spanishWord})`;
       g2CurrentLogEntry.parsedAnswer = spanishWord;

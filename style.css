@@ -2629,3 +2629,72 @@ body {
   min-width: 32px;
   text-align: right;
 }
+
+/* ===========================
+   Settings — Provider Grid
+=========================== */
+.settings-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.settings-provider-btn {
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all var(--transition);
+  line-height: 1.2;
+}
+
+.settings-provider-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.settings-provider-btn.selected {
+  background: rgba(233,69,96,0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.settings-provider-icon { font-size: 1.3rem; }
+
+.settings-provider-sub {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.settings-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.05em;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings-apikey-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
