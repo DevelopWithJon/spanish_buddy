@@ -4,6 +4,41 @@ All notable changes to Spanish Buddy are recorded here.
 
 ---
 
+## [2026-05-08]
+
+### Noun Gender Challenge (Game 5)
+- New AI-powered game that filters the word bank through Ollama before play begins, identifying all nouns and returning their grammatical gender (masculine / feminine) and plural form
+- Each card presents a bare noun — randomly in singular or plural form — and the user taps **el / la** (singular) or **los / las** (plural)
+- Prompt instructs the model to return bare nouns only; a client-side regex strip (`/^(el|la|los|las|un|una|unos|unas)\s+/i`) removes any article the model leaks anyway
+- Immediate correct / incorrect feedback with the right article displayed; running score tracked across the session
+- Results screen with per-word breakdown and session saved to history
+
+### Verb Conjugation Challenge (Game 6)
+- AI filters the word bank for verbs (infinitive form), returning present-tense indicative conjugations for all six subject pronouns: yo, tú, él, ella, ellos, ellas
+- Each card shows the infinitive plus a randomly selected subject pronoun; the user types the conjugated form and submits (Enter key supported)
+- Answers are compared using `normalize()` (diacritic-forgiving, case-insensitive) so missing accents don't fail a correct answer
+- Feedback shows what the user typed alongside the correct conjugation; results screen includes the pronoun tested per row
+
+### Knowledge Hub
+- New dedicated page accessible from the home screen ("📚 Knowledge Hub" card)
+- Users upload images (JPG, PNG) or PDFs of study material — textbook pages, handwritten notes, worksheets, etc.
+- Images are base64-encoded and sent to **llava** via the Ollama API with a structured extraction prompt; the response is stored as textualized content
+- PDFs are rendered page-by-page using **PDF.js** (CDN): each page is drawn to a canvas at 1.5× scale, converted to JPEG, and sent to llava individually with per-page progress feedback
+- Extracted content stored in `localStorage` under `spanishBuddy_knowledge` as `{ id, name, text, addedAt }` entries (up to 10 documents)
+- Document list shows file name, date added, a 3-line preview of extracted text, and a delete button
+- Drag-and-drop and click-to-browse both supported; a processing guard prevents concurrent uploads
+- **Chat Buddy (Sofía) integration**: `kbGetContext()` is injected into `buildSystemPrompt()` — when documents are present, a `CURRENT STUDY MATERIAL` block is added to Sofía's system prompt so she can quiz the student on it, reference its vocabulary, and tailor corrections to it
+
+### llava Support
+- llava vision model is now available in model pickers across the app
+- Knowledge Hub requires llava specifically; clear error shown if it is not installed (`ollama pull llava`)
+
+### Infrastructure
+- Added `.gitignore`: excludes `wordbanks/*.json` (user data), `__pycache__/`, `*.pyc`, `.DS_Store`
+- Added `wordbanks/.gitkeep` so the server's word bank directory is tracked without committing user files
+
+---
+
 ## [Unreleased]
 
 ### Chat Buddy — New Game Mode
