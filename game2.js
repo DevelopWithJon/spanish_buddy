@@ -52,8 +52,9 @@ function startGame2(model, difficulty) {
 
   const allWords = shuffle([...WORDS]);
   g2Rounds = [];
-  for (let i = 0; i < allWords.length; i += 10) {
-    g2Rounds.push(allWords.slice(i, i + 10));
+  const roundSize = settingsGet().roundSize;
+  for (let i = 0; i < allWords.length; i += roundSize) {
+    g2Rounds.push(allWords.slice(i, i + roundSize));
   }
   g2CurrentRound = 0;
   showPreRound();

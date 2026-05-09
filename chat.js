@@ -82,22 +82,7 @@ window.addEventListener("beforeunload", saveCurrentSession);
 // ── Game performance score ────────────────────────────────────────────────────
 
 function calcPerformanceScore() {
-  const history = historyGet();
-  if (!history.length) return null;
-
-  const DIFF_WEIGHT = { beginner: 0.7, intermediate: 1.0, advanced: 1.5 };
-  const GAME_WEIGHT = { pronunciation: 1.0, "fill-in-blank": 1.2 };
-  const DECAY = 0.85;
-
-  let wSum = 0, wTotal = 0;
-  history.forEach((e, i) => {
-    const w = Math.pow(DECAY, i)
-              * (DIFF_WEIGHT[e.difficulty] ?? 1.0)
-              * (GAME_WEIGHT[e.game]       ?? 1.0);
-    wSum   += (e.pct ?? 0) * w;
-    wTotal += w;
-  });
-  return wTotal > 0 ? Math.round(wSum / wTotal) : null;
+  return calcOverallScore();
 }
 
 function describePerformance(score) {
@@ -627,7 +612,7 @@ function speakText(text) {
   window.speechSynthesis.cancel();
   const utter   = new SpeechSynthesisUtterance(text);
   utter.lang    = "es-ES";
-  utter.rate    = 0.92;
+  utter.rate    = settingsGet().ttsSpeed;
   utter.pitch   = 1.0;
   const esVoice = cachedVoices.find(v => v.lang === "es-ES") ||
                   cachedVoices.find(v => v.lang.startsWith("es"));

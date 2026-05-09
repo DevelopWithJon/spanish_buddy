@@ -11,6 +11,7 @@
   <!-- HOME SCREEN -->
   <div id="home-screen" class="screen active">
     <div class="home-card">
+      <button id="home-settings-btn" class="home-settings-btn" title="Settings" aria-label="Settings">⚙️</button>
       <div class="flag">🇪🇸</div>
       <h1>Spanish Trainer</h1>
       <div class="home-meta">
@@ -21,41 +22,90 @@
         <span class="home-meta-divider">·</span>
         <button id="home-history-btn" class="btn-link">History</button>
       </div>
+
+      <!-- Stats row: streak + score -->
+      <div class="home-stats-row" id="home-stats-row" style="display:none">
+        <div class="home-stat" id="home-streak-stat">
+          <span class="home-stat-value" id="home-streak-val">🔥 0</span>
+          <span class="home-stat-label">day streak</span>
+        </div>
+        <div class="home-stat-divider"></div>
+        <div class="home-stat" id="home-score-stat">
+          <span class="home-stat-value" id="home-score-val">—</span>
+          <span class="home-stat-label">avg score</span>
+          <span class="home-stat-delta" id="home-score-delta"></span>
+        </div>
+      </div>
+
+      <!-- Ollama offline banner (hidden by default) -->
+      <div id="ollama-banner" class="ollama-banner" style="display:none">
+        <div class="ollama-banner-body">
+          <span class="ollama-banner-icon">⚠️</span>
+          <div class="ollama-banner-text">
+            <div class="ollama-banner-title">Ollama isn't running — AI games won't work</div>
+            <div class="ollama-banner-hint">Start it in your terminal:</div>
+            <code class="ollama-banner-code">ollama serve</code>
+          </div>
+        </div>
+        <button id="ollama-retry-btn" class="ollama-retry-btn">↻ Retry Connection</button>
+      </div>
+
       <div class="game-options">
         <button class="game-option-card" id="pick-game1">
           <span class="game-icon">🎤</span>
-          <h3>Pronunciation</h3>
-          <p>Say the Spanish word aloud and get scored on accuracy</p>
+          <div class="game-card-body">
+            <h3>Pronunciation</h3>
+            <p>Say the Spanish word aloud and get scored on accuracy</p>
+            <span class="game-badge badge-offline">Offline OK</span>
+          </div>
         </button>
         <button class="game-option-card" id="pick-game2">
           <span class="game-icon">✏️</span>
-          <h3>Fill in the Blank</h3>
-          <p>Type the missing word in AI-generated Spanish sentences</p>
+          <div class="game-card-body">
+            <h3>Fill in the Blank</h3>
+            <p>Type the missing word in AI-generated Spanish sentences</p>
+            <span class="game-badge badge-ollama">Requires Ollama</span>
+          </div>
         </button>
         <button class="game-option-card" id="pick-game3">
           <span class="game-icon">🃏</span>
-          <h3>Flashcards</h3>
-          <p>Flip cards to study English ↔ Spanish at your own pace</p>
+          <div class="game-card-body">
+            <h3>Flashcards</h3>
+            <p>Flip cards to study English ↔ Spanish at your own pace</p>
+            <span class="game-badge badge-offline">Offline OK</span>
+          </div>
         </button>
         <button class="game-option-card" id="pick-chat">
           <span class="game-icon">💬</span>
-          <h3>Chat Buddy</h3>
-          <p>Practice conversational Spanish with an AI tutor</p>
+          <div class="game-card-body">
+            <h3>Chat Buddy</h3>
+            <p>Practice conversational Spanish with an AI tutor</p>
+            <span class="game-badge badge-ollama">Requires Ollama</span>
+          </div>
         </button>
         <button class="game-option-card" id="pick-game4">
           <span class="game-icon">⚤</span>
-          <h3>Noun Gender Challenge</h3>
-          <p>Identify whether Spanish nouns are masculine or feminine</p>
+          <div class="game-card-body">
+            <h3>Noun Gender Challenge</h3>
+            <p>Identify whether Spanish nouns are masculine or feminine</p>
+            <span class="game-badge badge-ollama">Requires Ollama</span>
+          </div>
         </button>
         <button class="game-option-card" id="pick-game5">
           <span class="game-icon">🔤</span>
-          <h3>Verb Conjugation Challenge</h3>
-          <p>Type the correct present-tense conjugation for each subject pronoun</p>
+          <div class="game-card-body">
+            <h3>Verb Conjugation Challenge</h3>
+            <p>Type the correct present-tense conjugation for each subject pronoun</p>
+            <span class="game-badge badge-ollama">Requires Ollama</span>
+          </div>
         </button>
         <button class="game-option-card kb-home-card" id="home-knowledge-btn">
           <span class="game-icon">📚</span>
-          <h3>Knowledge Hub</h3>
-          <p>Upload study materials — Sofía will reference them during chat sessions</p>
+          <div class="game-card-body">
+            <h3>Knowledge Hub</h3>
+            <p>Upload study materials — Sofía will reference them during chat sessions</p>
+            <span class="game-badge badge-ollama">Requires Ollama</span>
+          </div>
         </button>
       </div>
     </div>
@@ -740,7 +790,61 @@
     </div>
   </div>
 
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="review-header">
+        <h3>⚙️ Settings</h3>
+        <button id="close-settings-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
+      </div>
+
+      <p class="settings-section-label">Default Model</p>
+      <select id="settings-model-select" class="settings-select">
+        <option value="">Loading models…</option>
+      </select>
+
+      <p class="settings-section-label">TTS Speed</p>
+      <div class="settings-slider-row">
+        <span style="font-size:0.8rem;color:var(--text-muted)">0.5×</span>
+        <input type="range" id="settings-tts-slider" class="settings-slider"
+               min="0.5" max="1.5" step="0.05" value="0.9" />
+        <span style="font-size:0.8rem;color:var(--text-muted)">1.5×</span>
+        <span class="settings-slider-val" id="settings-tts-val">0.9×</span>
+      </div>
+
+      <p class="settings-section-label">Default Difficulty</p>
+      <div class="difficulty-options" id="settings-difficulty-options">
+        <button class="difficulty-btn" data-level="beginner">
+          <span class="diff-label">Beginner</span>
+          <span class="diff-sub">A1 / A2</span>
+        </button>
+        <button class="difficulty-btn selected" data-level="intermediate">
+          <span class="diff-label">Intermediate</span>
+          <span class="diff-sub">B1 / B2</span>
+        </button>
+        <button class="difficulty-btn" data-level="advanced">
+          <span class="diff-label">Advanced</span>
+          <span class="diff-sub">C1 / C2</span>
+        </button>
+      </div>
+
+      <p class="settings-section-label">Words per Round</p>
+      <select id="settings-round-select" class="settings-select">
+        <option value="5">5 words</option>
+        <option value="10" selected>10 words</option>
+        <option value="15">15 words</option>
+        <option value="20">20 words</option>
+      </select>
+
+      <div class="modal-actions">
+        <button id="save-settings-btn" class="btn btn-primary">Save</button>
+        <button id="cancel-settings-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="settings.js"></script>
   <script src="game.js"></script>
   <script src="game2.js"></script>
   <script src="game3.js"></script>

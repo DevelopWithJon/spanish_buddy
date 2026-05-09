@@ -1,4 +1,10 @@
 // ===========================
+// Ollama Status Cache
+// ===========================
+let ollamaModelCache = null;   // null = not yet fetched, [] = fetched but empty
+let ollamaOnline = null;       // null = unknown, true/false after check
+
+// ===========================
 // Shared Word List
 // ===========================
 const DEFAULT_WORDS = [
@@ -326,6 +332,7 @@ function showScreen(id) {
     const route = SCREEN_ROUTES[id] ?? "home";
     history.pushState({ screenId: id }, "", `#${route}`);
   }
+  if (id === "home-screen") updateHomeStats();
 }
 
 window.addEventListener("popstate", (e) => {
@@ -341,13 +348,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const screenId = ROUTE_TO_SCREEN[hash];
 
   if (screenId === "game3-screen") {
-    // Flashcards requires no setup — can be deeplinkied directly
+    // Flashcards requires no setup — can be deeplinked directly
     startGame3();
   } else {
     // All other screens need setup modals or in-progress state —
     // fall back to home, which is already active in the HTML
     history.replaceState({ screenId: "home-screen" }, "", "#home");
   }
+
+  checkOllama();
+  updateHomeStats();
+  applySettingsToUI();
 });
 
 // ===========================
@@ -600,7 +611,7 @@ function speakSpanish(text) {
   const utt = new SpeechSynthesisUtterance(text);
   utt.lang = "es-ES";
   if (spanishVoice) utt.voice = spanishVoice;
-  utt.rate = 0.9;
+  utt.rate = settingsGet().ttsSpeed;
   utt.onstart = () => { el.ttsBtn.textContent = "⏹ Stop"; };
   utt.onend = utt.onerror = () => { el.ttsBtn.textContent = "🔊 Hear it"; };
   speechSynthesis.speak(utt);
@@ -612,7 +623,8 @@ function speakSpanish(text) {
 function startGame1() {
   const allWords = shuffle([...WORDS]);
   g1Rounds = [];
-  for (let i = 0; i < allWords.length; i += 10) g1Rounds.push(allWords.slice(i, i + 10));
+  const roundSize = settingsGet().roundSize;
+  for (let i = 0; i < allWords.length; i += roundSize) g1Rounds.push(allWords.slice(i, i + roundSize));
   g1CurrentRound = 0;
   showG1PreRound();
 }
@@ -914,7 +926,7 @@ document.getElementById("word-editor-modal").addEventListener("click", (e) => {
 // Model Picker
 // ===========================
 let selectedModel = null;
-let selectedDifficulty = "intermediate";
+let selectedDifficulty = settingsGet().defaultDifficulty;
 
 // Difficulty button wiring — scoped to Game 2 picker
 document.querySelectorAll("#model-picker-modal .difficulty-btn").forEach(btn => {
@@ -929,7 +941,7 @@ document.querySelectorAll("#model-picker-modal .difficulty-btn").forEach(btn => 
 // Chat Buddy Picker
 // ===========================
 let chatSelectedModel = null;
-let chatSelectedDifficulty = "intermediate";
+let chatSelectedDifficulty = settingsGet().defaultDifficulty;
 
 document.querySelectorAll("#chat-difficulty-options .difficulty-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -947,41 +959,15 @@ async function openChatPicker() {
   document.getElementById("chat-picker-modal").classList.remove("hidden");
 
   try {
-    const res = await fetch("http://localhost:11434/api/tags");
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    const models = data.models || [];
-
-    if (!models.length) {
-      document.getElementById("chat-model-list").innerHTML = '<div class="model-loading">No models found. Run: ollama pull llama3.2</div>';
-      return;
-    }
-
-    const listEl = document.getElementById("chat-model-list");
-    listEl.innerHTML = models.map(m => `
-      <button class="model-option" data-model="${m.name}">
-        <span style="font-size:1.4rem">🤖</span>
-        <div>
-          <div class="model-name">${m.name}</div>
-          <div class="model-size">${(m.size / 1e9).toFixed(1)} GB</div>
-        </div>
-      </button>
-    `).join("");
-
-    listEl.querySelectorAll(".model-option").forEach(btn => {
-      btn.addEventListener("click", () => {
-        listEl.querySelectorAll(".model-option").forEach(b => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        chatSelectedModel = btn.dataset.model;
-        document.getElementById("start-chat-btn").disabled = false;
-      });
-    });
-
-    const preferred = listEl.querySelector('[data-model^="llama3.2"]');
-    if (preferred) preferred.click();
-
+    const models = await ollamaFetchModels();
+    populateModelList(
+      document.getElementById("chat-model-list"),
+      document.getElementById("start-chat-btn"),
+      (model) => { chatSelectedModel = model; }
+    );
   } catch {
-    document.getElementById("chat-model-error").textContent = "Could not connect to Ollama. Make sure it's running.";
+    document.getElementById("chat-model-error").textContent =
+      "Could not connect to Ollama. Start it with: ollama serve";
     document.getElementById("chat-model-error").classList.remove("hidden");
     document.getElementById("chat-model-list").innerHTML = "";
   }
@@ -1012,41 +998,15 @@ async function openModelPicker() {
   document.getElementById("model-picker-modal").classList.remove("hidden");
 
   try {
-    const res = await fetch("http://localhost:11434/api/tags");
-    if (!res.ok) throw new Error("Ollama not reachable");
-    const data = await res.json();
-    const models = data.models || [];
-
-    if (!models.length) {
-      document.getElementById("model-list").innerHTML = '<div class="model-loading">No models found. Run: ollama pull llama3.2</div>';
-      return;
-    }
-
-    document.getElementById("model-list").innerHTML = models.map(m => `
-      <button class="model-option" data-model="${m.name}">
-        <span style="font-size:1.4rem">🤖</span>
-        <div>
-          <div class="model-name">${m.name}</div>
-          <div class="model-size">${(m.size / 1e9).toFixed(1)} GB</div>
-        </div>
-      </button>
-    `).join("");
-
-    document.querySelectorAll(".model-option").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".model-option").forEach(b => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        selectedModel = btn.dataset.model;
-        document.getElementById("start-game2-btn").disabled = false;
-      });
-    });
-
-    // Auto-select llama3.2 if available
-    const preferred = document.querySelector('[data-model^="llama3.2"]');
-    if (preferred) preferred.click();
-
+    await ollamaFetchModels();
+    populateModelList(
+      document.getElementById("model-list"),
+      document.getElementById("start-game2-btn"),
+      (model) => { selectedModel = model; }
+    );
   } catch {
-    document.getElementById("model-error").textContent = "Could not connect to Ollama. Make sure it's running.";
+    document.getElementById("model-error").textContent =
+      "Could not connect to Ollama. Start it with: ollama serve";
     document.getElementById("model-error").classList.remove("hidden");
     document.getElementById("model-list").innerHTML = "";
   }
@@ -1065,4 +1025,264 @@ document.getElementById("cancel-model-btn").addEventListener("click", () => {
 document.getElementById("model-picker-modal").addEventListener("click", (e) => {
   if (e.target === document.getElementById("model-picker-modal"))
     document.getElementById("model-picker-modal").classList.add("hidden");
+});
+
+// ===========================
+// Ollama Health Check (Feature 1)
+// ===========================
+async function ollamaFetchModels() {
+  if (ollamaModelCache !== null) return ollamaModelCache;
+  const res = await fetch("http://localhost:11434/api/tags");
+  if (!res.ok) throw new Error("Ollama not reachable");
+  const data = await res.json();
+  ollamaModelCache = data.models || [];
+  return ollamaModelCache;
+}
+
+async function checkOllama() {
+  try {
+    await ollamaFetchModels();
+    ollamaOnline = true;
+    hideOllamaBanner();
+  } catch {
+    ollamaOnline = false;
+    ollamaModelCache = null;   // allow retry to re-fetch
+    showOllamaBanner();
+  }
+}
+
+function showOllamaBanner() {
+  const el = document.getElementById("ollama-banner");
+  if (el) el.style.display = "";
+}
+
+function hideOllamaBanner() {
+  const el = document.getElementById("ollama-banner");
+  if (el) el.style.display = "none";
+}
+
+document.getElementById("ollama-retry-btn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("ollama-retry-btn");
+  btn.textContent = "Checking…";
+  btn.disabled = true;
+  ollamaModelCache = null;
+  await checkOllama();
+  btn.textContent = "↻ Retry Connection";
+  btn.disabled = false;
+});
+
+// ===========================
+// Shared Model Picker Helper (Features 1 & 2)
+// ===========================
+function populateModelList(listEl, startBtn, onSelect) {
+  const models = ollamaModelCache || [];
+  const defaultModel = settingsGet().defaultModel;
+
+  if (!models.length) {
+    listEl.innerHTML = '<div class="model-loading">No models found. Run: ollama pull llama3.2</div>';
+    return;
+  }
+
+  listEl.innerHTML = models.map(m => `
+    <button class="model-option" data-model="${m.name}">
+      <span style="font-size:1.4rem">🤖</span>
+      <div>
+        <div class="model-name">${m.name}</div>
+        <div class="model-size">${(m.size / 1e9).toFixed(1)} GB</div>
+      </div>
+    </button>
+  `).join("");
+
+  listEl.querySelectorAll(".model-option").forEach(btn => {
+    btn.addEventListener("click", () => {
+      listEl.querySelectorAll(".model-option").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      onSelect(btn.dataset.model);
+      startBtn.disabled = false;
+    });
+  });
+
+  const preferred =
+    (defaultModel && listEl.querySelector(`[data-model="${defaultModel}"]`)) ||
+    listEl.querySelector('[data-model^="llama3.2"]') ||
+    listEl.querySelector(".model-option");
+  if (preferred) preferred.click();
+}
+
+// ===========================
+// Streak & Score (Feature 3)
+// ===========================
+function calcOverallScore() {
+  const history = historyGet();
+  if (!history.length) return null;
+
+  const DIFF_WEIGHT = { beginner: 0.7, intermediate: 1.0, advanced: 1.5 };
+  const GAME_WEIGHT = { pronunciation: 1.0, "fill-in-blank": 1.2, "noun-gender": 1.0, "verb-conjugation": 1.2 };
+  const DECAY = 0.85;
+
+  let wSum = 0, wTotal = 0;
+  history.forEach((e, i) => {
+    const w = Math.pow(DECAY, i)
+              * (DIFF_WEIGHT[e.difficulty] ?? 1.0)
+              * (GAME_WEIGHT[e.game]       ?? 1.0);
+    wSum   += (e.pct ?? 0) * w;
+    wTotal += w;
+  });
+  return wTotal > 0 ? Math.round(wSum / wTotal) : null;
+}
+
+function calcStreak() {
+  const history = historyGet();
+  if (!history.length) return 0;
+
+  const dates = new Set(history.map(e => new Date(e.date).toDateString()));
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+
+  let start;
+  if (dates.has(today.toDateString())) start = new Date(today);
+  else if (dates.has(yesterday.toDateString())) start = new Date(yesterday);
+  else return 0;
+
+  let streak = 0;
+  const d = new Date(start);
+  while (dates.has(d.toDateString())) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+function calcScoreDelta() {
+  const history = historyGet();
+  if (history.length < 6) return null;
+  const recent = history.slice(0, 3).reduce((s, e) => s + (e.pct ?? 0), 0) / 3;
+  const older  = history.slice(3, 6).reduce((s, e) => s + (e.pct ?? 0), 0) / 3;
+  return Math.round(recent - older);
+}
+
+function updateHomeStats() {
+  const streak = calcStreak();
+  const score  = calcOverallScore();
+  const delta  = historyGet().length >= 6 ? calcScoreDelta() : null;
+
+  const rowEl    = document.getElementById("home-stats-row");
+  const streakEl = document.getElementById("home-streak-val");
+  const scoreEl  = document.getElementById("home-score-val");
+  const deltaEl  = document.getElementById("home-score-delta");
+
+  if (!rowEl) return;
+
+  const hasData = historyGet().length > 0;
+  rowEl.style.display = hasData ? "" : "none";
+  if (!hasData) return;
+
+  streakEl.textContent = `🔥 ${streak}`;
+
+  if (score !== null) {
+    scoreEl.textContent = `${score}%`;
+    scoreEl.style.color = score >= 70 ? "var(--green)" : score >= 40 ? "var(--yellow)" : "var(--red)";
+  } else {
+    scoreEl.textContent = "—";
+    scoreEl.style.color = "var(--text-muted)";
+  }
+
+  if (delta !== null) {
+    const sign = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
+    const color = delta > 0 ? "var(--green)" : delta < 0 ? "var(--red)" : "var(--text-muted)";
+    deltaEl.textContent = `${sign}${Math.abs(delta)}pp vs last week`;
+    deltaEl.style.color = color;
+  } else {
+    deltaEl.textContent = "";
+  }
+}
+
+// ===========================
+// Settings Modal (Feature 2)
+// ===========================
+function applySettingsToUI() {
+  const s = settingsGet();
+
+  // Difficulty buttons in G2 picker
+  document.querySelectorAll("#model-picker-modal .difficulty-btn").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.level === s.defaultDifficulty);
+  });
+  selectedDifficulty = s.defaultDifficulty;
+
+  // Difficulty buttons in chat picker
+  document.querySelectorAll("#chat-difficulty-options .difficulty-btn").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.level === s.defaultDifficulty);
+  });
+  chatSelectedDifficulty = s.defaultDifficulty;
+}
+
+async function openSettingsModal() {
+  const s = settingsGet();
+
+  // TTS slider
+  const slider = document.getElementById("settings-tts-slider");
+  const sliderVal = document.getElementById("settings-tts-val");
+  slider.value = s.ttsSpeed;
+  sliderVal.textContent = `${s.ttsSpeed}×`;
+
+  // Round size
+  document.getElementById("settings-round-select").value = String(s.roundSize);
+
+  // Difficulty buttons
+  document.querySelectorAll("#settings-difficulty-options .difficulty-btn").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.level === s.defaultDifficulty);
+  });
+
+  // Model dropdown
+  const modelSelect = document.getElementById("settings-model-select");
+  modelSelect.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const models = await ollamaFetchModels();
+    modelSelect.innerHTML = '<option value="">No default (auto-select)</option>' +
+      models.map(m => `<option value="${m.name}">${m.name}</option>`).join("");
+    if (s.defaultModel) modelSelect.value = s.defaultModel;
+  } catch {
+    modelSelect.innerHTML = '<option value="">Ollama offline — no models</option>';
+  }
+
+  document.getElementById("settings-modal").classList.remove("hidden");
+}
+
+document.getElementById("home-settings-btn").addEventListener("click", openSettingsModal);
+
+document.getElementById("settings-tts-slider").addEventListener("input", () => {
+  const v = parseFloat(document.getElementById("settings-tts-slider").value).toFixed(2);
+  document.getElementById("settings-tts-val").textContent = `${v}×`;
+});
+
+document.querySelectorAll("#settings-difficulty-options .difficulty-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#settings-difficulty-options .difficulty-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+  });
+});
+
+document.getElementById("save-settings-btn").addEventListener("click", () => {
+  const ttsSpeed = parseFloat(document.getElementById("settings-tts-slider").value);
+  const roundSize = parseInt(document.getElementById("settings-round-select").value, 10);
+  const defaultModel = document.getElementById("settings-model-select").value || null;
+  const diffBtn = document.querySelector("#settings-difficulty-options .difficulty-btn.selected");
+  const defaultDifficulty = diffBtn?.dataset.level ?? "intermediate";
+
+  settingsSave({ ttsSpeed, roundSize, defaultModel, defaultDifficulty });
+  applySettingsToUI();
+  document.getElementById("settings-modal").classList.add("hidden");
+});
+
+document.getElementById("cancel-settings-btn").addEventListener("click", () => {
+  document.getElementById("settings-modal").classList.add("hidden");
+});
+
+document.getElementById("close-settings-btn").addEventListener("click", () => {
+  document.getElementById("settings-modal").classList.add("hidden");
+});
+
+document.getElementById("settings-modal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("settings-modal"))
+    document.getElementById("settings-modal").classList.add("hidden");
 });
