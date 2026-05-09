@@ -43,7 +43,7 @@ function lsSetBanks(data) {
 async function banksList() {
   try {
     const r = await fetch(BANKS_API);
-    if (r.ok) return r.json();
+    if (r.ok) return await r.json();
   } catch {}
   return Object.keys(lsGetBanks()).sort();
 }
@@ -51,7 +51,7 @@ async function banksList() {
 async function bankGet(name) {
   try {
     const r = await fetch(`${BANKS_API}/${encodeURIComponent(name)}`);
-    if (r.ok) return r.json();
+    if (r.ok) return await r.json();
   } catch {}
   const banks = lsGetBanks();
   if (!banks[name]) throw new Error("Bank not found");
