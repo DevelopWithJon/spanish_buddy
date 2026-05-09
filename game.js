@@ -303,7 +303,14 @@ const SCREEN_ROUTES = {
   "game2-screen":         "fill-in-blank",
   "game2-results-screen": "fill-in-blank/results",
   "game3-screen":         "flashcards",
-  "chat-screen":          "chat",
+  "g4-loading-screen":    "noun-gender/loading",
+  "game4-screen":         "noun-gender",
+  "game4-results-screen": "noun-gender/results",
+  "g5-loading-screen":      "verb-conjugation/loading",
+  "game5-screen":           "verb-conjugation",
+  "game5-results-screen":   "verb-conjugation/results",
+  "knowledge-hub-screen":   "knowledge-hub",
+  "chat-screen":            "chat",
 };
 
 const ROUTE_TO_SCREEN = Object.fromEntries(

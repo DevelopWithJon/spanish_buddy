@@ -289,7 +289,7 @@ STUDENT PROFILE:
 • Game performance : ${performance}
 • Game sessions    : ${gameSessions}
 • Studied vocabulary (${WORDS.length} words): ${wordList}
-${buildChatHistoryContext()}
+${buildChatHistoryContext()}${typeof kbGetContext === "function" ? kbGetContext() : ""}
 ${"─".repeat(44)}
 OPENING MESSAGE (first turn only):
 When you receive "[START]" as the very first user message, a new session has just begun.
