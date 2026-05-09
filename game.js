@@ -450,6 +450,7 @@ function initRecognition() {
 
   recognition = new SR();
   recognition.lang = "es-ES";
+  recognition.continuous = true;
   recognition.interimResults = true;
   recognition.maxAlternatives = 3;
 
@@ -481,10 +482,13 @@ function initRecognition() {
 
   recognition.onerror = (event) => {
     console.error("[SR] error:", event.error, event);
-    stopListening();
     if (event.error === "aborted") return;
+    if (event.error === "no-speech") {
+      el.listeningStatus.textContent = "🎤 Speak now...";
+      return;
+    }
+    stopListening();
     const msgs = {
-      "no-speech":        "No speech detected — try again.",
       "not-allowed":      "Microphone access denied. Allow it in your browser settings.",
       "network":          "Network error — Speech API needs an internet connection.",
       "service-not-allowed": "Speech service blocked. Use Chrome and allow mic access.",
@@ -495,6 +499,10 @@ function initRecognition() {
 
   recognition.onend = () => {
     console.log("[SR] ended — resultHandled:", resultHandled, "| bestTranscript:", bestTranscript);
+    if (isListening && !resultHandled) {
+      try { recognition.start(); } catch {}
+      return;
+    }
     stopListening();
     if (!resultHandled && bestTranscript) {
       resultHandled = true;

@@ -682,7 +682,8 @@ function initChatRecognition() {
     if (label) label.textContent = transcript || "Listening…";
   };
 
-  rec.onerror = () => {
+  rec.onerror = (e) => {
+    if (e.error === "aborted" || e.error === "no-speech") return;
     clearTimeout(silenceTimer);
     setInputState("idle");
   };
