@@ -2,7 +2,6 @@
 // Game 4 — Noun Gender Challenge
 // ===========================
 
-const G4_OLLAMA_URL = "http://localhost:11434/api/chat";
 
 let g4Model = null;
 let g4SelectedModel = null;
@@ -40,44 +39,33 @@ async function openG4ModelPicker() {
   g4SelectedModel = null;
   document.getElementById("start-game4-btn").disabled = true;
   document.getElementById("g4-model-error").classList.add("hidden");
-  document.getElementById("g4-model-list").innerHTML = '<div class="model-loading">Loading models from Ollama...</div>';
+
+  const s = settingsGet();
+  const provider = s.provider || "ollama";
+
+  if (provider !== "ollama") {
+    const model = aiActiveModel();
+    if (!model || !s.apiKey) {
+      alert(`No API key configured for ${PROVIDER_LABELS[provider] || provider}. Add one in ⚙️ Settings.`);
+      return;
+    }
+    startGame4(model);
+    return;
+  }
+
+  const loadingMsg = "Loading models from Ollama...";
+  document.getElementById("g4-model-list").innerHTML = `<div class="model-loading">${loadingMsg}</div>`;
   document.getElementById("g4-model-picker-modal").classList.remove("hidden");
 
   try {
-    const res = await fetch("http://localhost:11434/api/tags");
-    if (!res.ok) throw new Error("Ollama not reachable");
-    const data = await res.json();
-    const models = data.models || [];
-
-    if (!models.length) {
-      document.getElementById("g4-model-list").innerHTML = '<div class="model-loading">No models found. Run: ollama pull llama3.2</div>';
-      return;
-    }
-
-    document.getElementById("g4-model-list").innerHTML = models.map(m => `
-      <button class="model-option" data-model="${m.name}">
-        <span style="font-size:1.4rem">🤖</span>
-        <div>
-          <div class="model-name">${m.name}</div>
-          <div class="model-size">${(m.size / 1e9).toFixed(1)} GB</div>
-        </div>
-      </button>
-    `).join("");
-
-    document.querySelectorAll("#g4-model-list .model-option").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll("#g4-model-list .model-option").forEach(b => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        g4SelectedModel = btn.dataset.model;
-        document.getElementById("start-game4-btn").disabled = false;
-      });
-    });
-
-    const preferred = document.querySelector("#g4-model-list [data-model^='llama3.2']");
-    if (preferred) preferred.click();
-
+    await ollamaFetchModels();
+    populateModelList(
+      document.getElementById("g4-model-list"),
+      document.getElementById("start-game4-btn"),
+      (model) => { g4SelectedModel = model; }
+    );
   } catch {
-    document.getElementById("g4-model-error").textContent = "Could not connect to Ollama. Make sure it's running.";
+    document.getElementById("g4-model-error").textContent = "Could not connect to Ollama. Start it with: ollama serve";
     document.getElementById("g4-model-error").classList.remove("hidden");
     document.getElementById("g4-model-list").innerHTML = "";
   }
@@ -110,7 +98,7 @@ async function startGame4(model) {
     g4LoadCard();
   } catch (e) {
     g4el.spinner.style.display = "none";
-    g4el.filterStatus.textContent = "Could not connect to Ollama. Make sure it's running at localhost:11434.";
+    g4el.filterStatus.textContent = "Could not connect to AI. Check your settings.";
   }
 }
 
@@ -137,42 +125,9 @@ Rules:
     { role: "user", content: wordList }
   ];
 
-  const res = await fetch(G4_OLLAMA_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: g4Model,
-      messages,
-      stream: true,
-      keep_alive: "10m",
-      options: { temperature: 0.1, num_predict: 600 },
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Ollama responded with ${res.status}`);
-
-  const raw = await g4ReadStream(res);
+  const systemMsg = messages[0].content;
+  const raw = await aiGenerate(systemMsg, wordList, { model: g4Model, temperature: 0.1, maxTokens: 600 });
   return g4ParseNounResponse(raw);
-}
-
-async function g4ReadStream(res) {
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        const obj = JSON.parse(line);
-        full += obj.message?.content || "";
-      } catch { /* incomplete chunk */ }
-    }
-  }
-  return full.trim();
 }
 
 const G4_ARTICLE_RE = /^(el|la|los|las|un|una|unos|unas)\s+/i;

@@ -11,6 +11,7 @@
   <!-- HOME SCREEN -->
   <div id="home-screen" class="screen active">
     <div class="home-card">
+      <button id="home-settings-btn" class="home-settings-btn" title="Settings" aria-label="Settings">⚙️ Settings</button>
       <div class="flag">🇪🇸</div>
       <h1>Spanish Trainer</h1>
       <div class="home-meta">
@@ -20,6 +21,19 @@
         <button id="home-banks-btn" class="btn-link">Saved Banks</button>
         <span class="home-meta-divider">·</span>
         <button id="home-history-btn" class="btn-link">History</button>
+      </div>
+
+      <!-- Ollama offline banner (hidden by default) -->
+      <div id="ollama-banner" class="ollama-banner" style="display:none">
+        <div class="ollama-banner-body">
+          <span class="ollama-banner-icon">⚠️</span>
+          <div class="ollama-banner-text">
+            <div class="ollama-banner-title">Ollama isn't running — AI games won't work</div>
+            <div class="ollama-banner-hint">Start it in your terminal:</div>
+            <code class="ollama-banner-code">ollama serve</code>
+          </div>
+        </div>
+        <button id="ollama-retry-btn" class="ollama-retry-btn">↻ Retry Connection</button>
       </div>
       <div class="game-options">
         <button class="game-option-card" id="pick-game1">
@@ -740,7 +754,103 @@
     </div>
   </div>
 
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="review-header">
+        <h3>⚙️ Settings</h3>
+        <button id="close-settings-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
+      </div>
+
+      <p class="settings-section-label">AI Provider</p>
+      <div class="settings-provider-grid" id="settings-provider-grid">
+        <button class="settings-provider-btn selected" data-provider="ollama">
+          <span class="settings-provider-icon">🖥</span>
+          <span>Ollama</span>
+          <span class="settings-provider-sub">Local</span>
+        </button>
+        <button class="settings-provider-btn" data-provider="openai">
+          <span class="settings-provider-icon">🤖</span>
+          <span>OpenAI</span>
+        </button>
+        <button class="settings-provider-btn" data-provider="gemini">
+          <span class="settings-provider-icon">💎</span>
+          <span>Gemini</span>
+        </button>
+        <button class="settings-provider-btn" data-provider="claude">
+          <span class="settings-provider-icon">🟣</span>
+          <span>Claude</span>
+        </button>
+        <button class="settings-provider-btn" data-provider="openrouter">
+          <span class="settings-provider-icon">🔀</span>
+          <span>OpenRouter</span>
+          <span class="settings-provider-sub">Free models</span>
+        </button>
+      </div>
+
+      <div id="settings-apikey-row" style="display:none">
+        <p class="settings-section-label" style="margin-top:14px">API Key</p>
+        <input type="password" id="settings-apikey-input" class="settings-input"
+               placeholder="Paste your API key here…" autocomplete="off" spellcheck="false" />
+        <p class="settings-apikey-note">🔒 Stored locally in your browser only, never sent to our servers.</p>
+        <p id="settings-openrouter-note" class="settings-apikey-note" style="display:none;margin-top:4px">
+          Get a free API key at <a href="https://openrouter.ai" target="_blank" rel="noopener" style="color:var(--accent)">openrouter.ai</a>
+        </p>
+      </div>
+
+      <p class="settings-section-label" style="margin-top:14px">Default Model</p>
+      <select id="settings-model-select" class="settings-select">
+        <option value="">Loading models…</option>
+      </select>
+      <input type="text" id="settings-model-input" class="settings-input" style="display:none"
+             placeholder="e.g. gpt-4o-mini" autocomplete="off" spellcheck="false" />
+      <p id="settings-openrouter-model-note" class="settings-apikey-note" style="display:none;margin-top:6px">
+        Add <code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px">:free</code> to the model name for free tier (rate limited)
+      </p>
+
+      <p class="settings-section-label">TTS Speed</p>
+      <div class="settings-slider-row">
+        <span style="font-size:0.8rem;color:var(--text-muted)">0.5×</span>
+        <input type="range" id="settings-tts-slider" class="settings-slider"
+               min="0.5" max="1.5" step="0.05" value="0.9" />
+        <span style="font-size:0.8rem;color:var(--text-muted)">1.5×</span>
+        <span class="settings-slider-val" id="settings-tts-val">0.9×</span>
+      </div>
+
+      <p class="settings-section-label">Default Difficulty</p>
+      <div class="difficulty-options" id="settings-difficulty-options">
+        <button class="difficulty-btn" data-level="beginner">
+          <span class="diff-label">Beginner</span>
+          <span class="diff-sub">A1 / A2</span>
+        </button>
+        <button class="difficulty-btn selected" data-level="intermediate">
+          <span class="diff-label">Intermediate</span>
+          <span class="diff-sub">B1 / B2</span>
+        </button>
+        <button class="difficulty-btn" data-level="advanced">
+          <span class="diff-label">Advanced</span>
+          <span class="diff-sub">C1 / C2</span>
+        </button>
+      </div>
+
+      <p class="settings-section-label">Words per Round</p>
+      <select id="settings-round-select" class="settings-select">
+        <option value="5">5 words</option>
+        <option value="10" selected>10 words</option>
+        <option value="15">15 words</option>
+        <option value="20">20 words</option>
+      </select>
+
+      <div class="modal-actions">
+        <button id="save-settings-btn" class="btn btn-primary">Save</button>
+        <button id="cancel-settings-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="settings.js"></script>
+  <script src="ai.js"></script>
   <script src="game.js"></script>
   <script src="game2.js"></script>
   <script src="game3.js"></script>

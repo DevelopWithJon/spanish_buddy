@@ -343,38 +343,19 @@ async function sendOpeningMessage() {
   let aiMsg       = null;
 
   try {
-    const res = await fetch("http://localhost:11434/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:    chatModel,
-        stream:   true,
-        messages: [{ role: "system", content: chatSystemPrompt }, ...chatHistory],
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Ollama ${res.status}`);
+    const messages = [{ role: "system", content: chatSystemPrompt }, ...chatHistory];
+    const msgEl = document.getElementById("chat-messages");
 
     showThinking(false);
     aiMsg = createStreamingBubble();
 
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
-    const msgEl   = document.getElementById("chat-messages");
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream: true }).split("\n")) {
-        if (!line.trim()) continue;
-        try {
-          const token = JSON.parse(line).message?.content ?? "";
-          accumulated += token;
-          aiMsg.bubble.textContent = accumulated;
-          msgEl.scrollTop = msgEl.scrollHeight;
-        } catch {}
-      }
-    }
+    accumulated = await aiChat(messages, {
+      model: chatModel,
+      onChunk: (_, acc) => {
+        aiMsg.bubble.textContent = acc;
+        msgEl.scrollTop = msgEl.scrollHeight;
+      },
+    });
 
     const corrMatch = accumulated.match(/\[CORRECTIONS:(\d+)\]/);
     if (corrMatch) {
@@ -389,7 +370,7 @@ async function sendOpeningMessage() {
   } catch {
     showThinking(false);
     if (!aiMsg) aiMsg = createStreamingBubble();
-    aiMsg.bubble.textContent = "⚠ Could not reach Ollama. Make sure it's running.";
+    aiMsg.bubble.textContent = "⚠ Could not connect to AI. Check your settings.";
     aiMsg.bubble.style.color = "#e74c3c";
   } finally {
     chatIsResponding = false;
@@ -410,25 +391,12 @@ Valid error types: "spelling", "verb", "syntax", "grammar"`;
 
 async function fetchCorrection(userText, contentEl) {
   try {
-    const res = await fetch("http://localhost:11434/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:  chatModel,
-        stream: false,
-        messages: [
-          { role: "system", content: CORRECTION_SYSTEM },
-          { role: "user",   content: userText },
-        ],
-      }),
-    });
-
-    if (!res.ok) return;
-    const data = await res.json();
-    const raw  = (data.message?.content ?? "")
+    const raw = await aiGenerate(CORRECTION_SYSTEM, userText, { model: chatModel });
+    const cleaned = raw
+      .replace(/<think>[\s\S]*?<\/think>/gi, "")
       .replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
-    const correction = JSON.parse(raw);
+    const correction = JSON.parse(cleaned);
     if (!correction.hasErrors || !correction.errors.length) return;
 
     chatCorrectionsLog.push({
@@ -489,38 +457,19 @@ async function sendToAI(userText) {
   let aiMsg       = null;   // { bubble, wrap }
 
   try {
-    const res = await fetch("http://localhost:11434/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:    chatModel,
-        stream:   true,
-        messages: [{ role: "system", content: chatSystemPrompt }, ...chatHistory],
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Ollama ${res.status}`);
+    const messages = [{ role: "system", content: chatSystemPrompt }, ...chatHistory];
+    const msgEl = document.getElementById("chat-messages");
 
     showThinking(false);
     aiMsg = createStreamingBubble();
 
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
-    const msgEl   = document.getElementById("chat-messages");
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream: true }).split("\n")) {
-        if (!line.trim()) continue;
-        try {
-          const token = JSON.parse(line).message?.content ?? "";
-          accumulated += token;
-          aiMsg.bubble.textContent = accumulated;
-          msgEl.scrollTop = msgEl.scrollHeight;
-        } catch {}
-      }
-    }
+    accumulated = await aiChat(messages, {
+      model: chatModel,
+      onChunk: (_, acc) => {
+        aiMsg.bubble.textContent = acc;
+        msgEl.scrollTop = msgEl.scrollHeight;
+      },
+    });
 
     // Strip correction marker and tally
     const corrMatch = accumulated.match(/\[CORRECTIONS:(\d+)\]/);
@@ -538,7 +487,7 @@ async function sendToAI(userText) {
   } catch {
     showThinking(false);
     if (!aiMsg) aiMsg = createStreamingBubble();
-    aiMsg.bubble.textContent = "⚠ Could not reach Ollama. Make sure it's running.";
+    aiMsg.bubble.textContent = "⚠ Could not connect to AI. Check your settings.";
     aiMsg.bubble.style.color = "#e74c3c";
   } finally {
     chatIsResponding = false;
@@ -976,24 +925,11 @@ async function fetchExplanation(selectedText) {
   showExplainPanel(selectedText);
 
   try {
-    const res = await fetch("http://localhost:11434/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model:  chatModel,
-        stream: false,
-        messages: [
-          { role: "system", content: EXPLAIN_SYSTEM },
-          { role: "user",   content: selectedText },
-        ],
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Ollama ${res.status}`);
-    const data = await res.json();
-    const raw  = (data.message?.content ?? "")
+    const raw = await aiGenerate(EXPLAIN_SYSTEM, selectedText, { model: chatModel });
+    const cleaned = raw
+      .replace(/<think>[\s\S]*?<\/think>/gi, "")
       .replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(cleaned);
     renderExplainContent(parsed);
 
   } catch (err) {

@@ -2390,3 +2390,133 @@ body {
   .kb-content { padding: 16px; }
   .kb-upload-area { padding: 24px 16px; }
 }
+
+/* ===========================
+   Ollama Banner
+=========================== */
+.ollama-banner {
+  background: rgba(243,156,18,0.12);
+  border: 1px solid rgba(243,156,18,0.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+.ollama-banner-body { display: flex; align-items: flex-start; gap: 10px; }
+.ollama-banner-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+.ollama-banner-text { flex: 1; min-width: 0; }
+.ollama-banner-title { font-size: 0.88rem; font-weight: 700; color: var(--yellow); margin-bottom: 4px; }
+.ollama-banner-hint { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
+.ollama-banner-code {
+  display: inline-block;
+  background: rgba(0,0,0,0.35);
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  margin-top: 6px;
+  color: var(--text);
+  user-select: all;
+}
+.ollama-retry-btn {
+  margin-top: 10px;
+  background: rgba(243,156,18,0.18);
+  border: 1px solid rgba(243,156,18,0.4);
+  border-radius: 8px;
+  color: var(--yellow);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  transition: all var(--transition);
+  display: block;
+  width: 100%;
+}
+.ollama-retry-btn:hover { background: rgba(243,156,18,0.28); }
+
+/* ===========================
+   Settings Button & Modal
+=========================== */
+.home-card { position: relative; }
+.home-settings-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  height: auto;
+  width: auto;
+  padding: 5px 10px;
+  gap: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  letter-spacing: 0.01em;
+}
+.home-settings-btn:hover { border-color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.1); color: #fff; }
+.settings-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 16px 0 8px;
+}
+.settings-select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.92rem;
+  padding: 10px 12px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.settings-select:focus { outline: none; border-color: var(--accent); }
+.settings-slider-row { display: flex; align-items: center; gap: 12px; }
+.settings-slider { flex: 1; -webkit-appearance: none; height: 5px; background: rgba(255,255,255,0.1); border-radius: 99px; outline: none; }
+.settings-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+.settings-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none; }
+.settings-slider-val { font-size: 0.85rem; font-weight: 700; color: var(--accent); min-width: 32px; text-align: right; }
+.settings-provider-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.settings-provider-btn {
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all var(--transition);
+  line-height: 1.2;
+}
+.settings-provider-btn:hover { border-color: var(--accent); color: var(--text); }
+.settings-provider-btn.selected { background: rgba(233,69,96,0.12); border-color: var(--accent); color: var(--accent); }
+.settings-provider-icon { font-size: 1.3rem; }
+.settings-provider-sub { font-size: 0.6rem; font-weight: 400; color: var(--text-muted); }
+.settings-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.05em;
+}
+.settings-input:focus { outline: none; border-color: var(--accent); }
+.settings-apikey-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
