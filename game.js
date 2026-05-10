@@ -1295,17 +1295,32 @@ function applySettingsToUI() {
   chatSelectedDifficulty = s.defaultDifficulty;
 }
 
+const CLOUD_MODEL_PLACEHOLDERS = {
+  openai:     "e.g. gpt-4o-mini",
+  gemini:     "e.g. gemini-1.5-flash",
+  claude:     "e.g. claude-haiku-4-5",
+  openrouter: "e.g. meta-llama/llama-3.1-8b-instruct:free",
+};
+
 async function refreshSettingsModelSelect(provider, s) {
   const modelSelect = document.getElementById("settings-model-select");
-  if (!modelSelect) return;
+  const modelInput  = document.getElementById("settings-model-input");
+  const modelNote   = document.getElementById("settings-openrouter-model-note");
+  if (!modelSelect || !modelInput) return;
 
   if (provider !== "ollama") {
-    const models = CLOUD_MODELS[provider] || [];
-    modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
-    if (s.cloudModel) modelSelect.value = s.cloudModel;
+    modelSelect.style.display = "none";
+    modelInput.style.display  = "";
+    modelInput.placeholder    = CLOUD_MODEL_PLACEHOLDERS[provider] || "Enter model ID";
+    modelInput.value          = s.cloudModel || "";
+    if (modelNote) modelNote.style.display = provider === "openrouter" ? "" : "none";
     return;
   }
 
+  // Ollama: show dropdown, hide text input
+  modelInput.style.display  = "none";
+  modelSelect.style.display = "";
+  if (modelNote) modelNote.style.display = "none";
   modelSelect.innerHTML = '<option value="">Loading…</option>';
   try {
     const models = await ollamaFetchModels();
@@ -1394,7 +1409,9 @@ document.getElementById("save-settings-btn").addEventListener("click", () => {
   const providerBtn = document.querySelector(".settings-provider-btn.selected");
   const provider = providerBtn?.dataset.provider ?? "ollama";
   const apiKey = document.getElementById("settings-apikey-input")?.value.trim() ?? "";
-  const modelVal = document.getElementById("settings-model-select")?.value || null;
+  const modelVal = provider === "ollama"
+    ? (document.getElementById("settings-model-select")?.value || null)
+    : (document.getElementById("settings-model-input")?.value.trim() || null);
 
   const updates = { ttsSpeed, roundSize, defaultDifficulty, provider, apiKey };
   if (provider === "ollama") updates.defaultModel = modelVal;
