@@ -1331,6 +1331,7 @@ async function openSettingsModal() {
   if (apikeyRow) apikeyRow.style.display = provider === "ollama" ? "none" : "";
   const apikeyInput = document.getElementById("settings-apikey-input");
   if (apikeyInput) apikeyInput.value = s.apiKey || "";
+  settingsToggleOpenRouterNote(provider);
 
   // TTS slider
   const slider = document.getElementById("settings-tts-slider");
@@ -1366,6 +1367,11 @@ document.querySelectorAll("#settings-difficulty-options .difficulty-btn").forEac
   });
 });
 
+function settingsToggleOpenRouterNote(provider) {
+  const note = document.getElementById("settings-openrouter-note");
+  if (note) note.style.display = provider === "openrouter" ? "" : "none";
+}
+
 document.querySelectorAll(".settings-provider-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".settings-provider-btn").forEach(b => b.classList.remove("selected"));
@@ -1373,6 +1379,7 @@ document.querySelectorAll(".settings-provider-btn").forEach(btn => {
     const prov = btn.dataset.provider;
     const apikeyRow = document.getElementById("settings-apikey-row");
     if (apikeyRow) apikeyRow.style.display = prov === "ollama" ? "none" : "";
+    settingsToggleOpenRouterNote(prov);
     const s = settingsGet();
     refreshSettingsModelSelect(prov, { ...s, provider: prov });
   });

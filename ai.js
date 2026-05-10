@@ -3,23 +3,33 @@
 // ===========================
 
 const CLOUD_MODELS = {
-  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-  gemini: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
-  claude: ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
+  openai:      ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+  gemini:      ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+  claude:      ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
+  openrouter:  [
+    "meta-llama/llama-3.3-70b-instruct",
+    "meta-llama/llama-3.1-8b-instruct",
+    "mistralai/mistral-7b-instruct",
+    "google/gemma-3-27b-it",
+    "qwen/qwen-2.5-72b-instruct",
+    "deepseek/deepseek-r1",
+  ],
 };
 
 const PROVIDER_LABELS = {
-  ollama: "Ollama (Local)",
-  openai: "OpenAI",
-  gemini: "Google Gemini",
-  claude:  "Anthropic Claude",
+  ollama:     "Ollama (Local)",
+  openai:     "OpenAI",
+  gemini:     "Google Gemini",
+  claude:     "Anthropic Claude",
+  openrouter: "OpenRouter",
 };
 
 const PROVIDER_ICONS = {
-  ollama: "🖥",
-  openai: "🤖",
-  gemini: "💎",
-  claude:  "🟣",
+  ollama:     "🖥",
+  openai:     "🤖",
+  gemini:     "💎",
+  claude:     "🟣",
+  openrouter: "🔀",
 };
 
 // Returns the model that should be used for AI calls.
@@ -65,6 +75,24 @@ function aiBuildFetch(provider, model, apiKey, messages, opts = {}) {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          stream: true,
+          temperature,
+          max_tokens: maxTokens,
+        }),
+      };
+
+    case "openrouter":
+      return {
+        url: "https://openrouter.ai/api/v1/chat/completions",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": "http://localhost:8000",
+          "X-Title": "Spanish Buddy",
         },
         body: JSON.stringify({
           model,
@@ -125,10 +153,11 @@ function aiBuildFetch(provider, model, apiKey, messages, opts = {}) {
 
 // ── Token extraction ──────────────────────────────────────────────────────────
 // Each provider has a different streaming wire format:
-//   Ollama  — newline-delimited JSON  {"message":{"content":"token"}}
-//   OpenAI  — SSE  data: {"choices":[{"delta":{"content":"token"}}]}
-//   Gemini  — SSE  data: {"candidates":[{"content":{"parts":[{"text":"token"}]}}]}
-//   Claude  — SSE  data: {"type":"content_block_delta","delta":{"text":"token"}}
+//   Ollama      — newline-delimited JSON  {"message":{"content":"token"}}
+//   OpenAI      — SSE  data: {"choices":[{"delta":{"content":"token"}}]}
+//   OpenRouter  — SSE  same as OpenAI
+//   Gemini      — SSE  data: {"candidates":[{"content":{"parts":[{"text":"token"}]}}]}
+//   Claude      — SSE  data: {"type":"content_block_delta","delta":{"text":"token"}}
 
 function aiExtractToken(provider, line) {
   if (!line.trim()) return "";
@@ -136,16 +165,17 @@ function aiExtractToken(provider, line) {
   switch (provider) {
 
     case "openai":
+    case "openrouter":
     case "gemini": {
       if (!line.startsWith("data: ")) return "";
       const raw = line.slice(6).trim();
       if (raw === "[DONE]") return "";
       try {
         const obj = JSON.parse(raw);
-        if (provider === "openai")
-          return obj.choices?.[0]?.delta?.content ?? "";
-        // Gemini
-        return obj.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        if (provider === "gemini")
+          return obj.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        // OpenAI / OpenRouter
+        return obj.choices?.[0]?.delta?.content ?? "";
       } catch { return ""; }
     }
 

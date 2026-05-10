@@ -817,6 +817,11 @@
           <span class="settings-provider-icon">🟣</span>
           <span>Claude</span>
         </button>
+        <button class="settings-provider-btn" data-provider="openrouter">
+          <span class="settings-provider-icon">🔀</span>
+          <span>OpenRouter</span>
+          <span class="settings-provider-sub">Free models</span>
+        </button>
       </div>
 
       <div id="settings-apikey-row" style="display:none">
@@ -824,6 +829,9 @@
         <input type="password" id="settings-apikey-input" class="settings-input"
                placeholder="Paste your API key here…" autocomplete="off" spellcheck="false" />
         <p class="settings-apikey-note">🔒 Stored locally in your browser only, never sent to our servers.</p>
+        <p id="settings-openrouter-note" class="settings-apikey-note" style="display:none;margin-top:4px">
+          Get a free API key at <a href="https://openrouter.ai" target="_blank" rel="noopener" style="color:var(--accent)">openrouter.ai</a>
+        </p>
       </div>
 
       <p class="settings-section-label" style="margin-top:14px" id="settings-model-label">Default Model</p>
