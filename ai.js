@@ -213,7 +213,7 @@ function aiExtractToken(provider, line) {
 async function aiChat(messages, opts = {}) {
   const s        = settingsGet();
   const provider = s.provider || "ollama";
-  const apiKey   = s.apiKey   || "";
+  const apiKey   = s.apiKeys?.[provider] || "";
   const model    = aiActiveModel(opts.model);
   const { onChunk, temperature, maxTokens } = opts;
 

@@ -1060,7 +1060,7 @@ async function checkOllama() {
   const s = settingsGet();
   const provider = s.provider || "ollama";
   if (provider !== "ollama") {
-    if (!s.apiKey) {
+    if (!s.apiKeys?.[provider]) {
       showOllamaBanner(
         `No API key for ${PROVIDER_LABELS[provider] || provider} — AI features disabled`,
         "Add your API key in ⚙️ Settings.", null, false
@@ -1117,7 +1117,7 @@ function populateModelList(listEl, startBtn, onSelect) {
 
   if (provider !== "ollama") {
     const model = s.cloudModel || CLOUD_MODELS[provider]?.[0];
-    if (!model || !s.apiKey) {
+    if (!model || !s.apiKeys?.[provider]) {
       listEl.innerHTML = '<div class="model-loading">Configure API key in ⚙️ Settings first.</div>';
       return;
     }
@@ -1216,16 +1216,19 @@ async function refreshSettingsModelSelect(provider, s) {
   }
 }
 
+let settingsActiveProvider = null;
+
 async function openSettingsModal() {
   const s = settingsGet();
   const provider = s.provider || "ollama";
+  settingsActiveProvider = provider;
   document.querySelectorAll(".settings-provider-btn").forEach(btn => {
     btn.classList.toggle("selected", btn.dataset.provider === provider);
   });
   const apikeyRow = document.getElementById("settings-apikey-row");
   if (apikeyRow) apikeyRow.style.display = provider === "ollama" ? "none" : "";
   const apikeyInput = document.getElementById("settings-apikey-input");
-  if (apikeyInput) apikeyInput.value = s.apiKey || "";
+  if (apikeyInput) apikeyInput.value = s.apiKeys?.[provider] || "";
   settingsToggleOpenRouterNote(provider);
   const slider = document.getElementById("settings-tts-slider");
   const sliderVal = document.getElementById("settings-tts-val");
@@ -1260,13 +1263,26 @@ document.querySelectorAll("#settings-difficulty-options .difficulty-btn").forEac
 
 document.querySelectorAll(".settings-provider-btn").forEach(btn => {
   btn.addEventListener("click", () => {
+    // Persist whatever key is currently typed before switching providers.
+    if (settingsActiveProvider && settingsActiveProvider !== "ollama") {
+      const currentKey = document.getElementById("settings-apikey-input")?.value.trim() ?? "";
+      const s = settingsGet();
+      const keys = { ...s.apiKeys, [settingsActiveProvider]: currentKey };
+      settingsSave({ apiKeys: keys });
+    }
+
     document.querySelectorAll(".settings-provider-btn").forEach(b => b.classList.remove("selected"));
     btn.classList.add("selected");
     const prov = btn.dataset.provider;
+    settingsActiveProvider = prov;
+
+    const s = settingsGet();
     const apikeyRow = document.getElementById("settings-apikey-row");
     if (apikeyRow) apikeyRow.style.display = prov === "ollama" ? "none" : "";
+    const apikeyInput = document.getElementById("settings-apikey-input");
+    if (apikeyInput) apikeyInput.value = s.apiKeys?.[prov] || "";
     settingsToggleOpenRouterNote(prov);
-    refreshSettingsModelSelect(prov, { ...settingsGet(), provider: prov });
+    refreshSettingsModelSelect(prov, { ...s, provider: prov });
   });
 });
 
@@ -1277,11 +1293,14 @@ document.getElementById("save-settings-btn").addEventListener("click", () => {
   const defaultDifficulty = diffBtn?.dataset.level ?? "intermediate";
   const providerBtn = document.querySelector(".settings-provider-btn.selected");
   const provider = providerBtn?.dataset.provider ?? "ollama";
-  const apiKey = document.getElementById("settings-apikey-input")?.value.trim() ?? "";
+  const apiKeyVal = document.getElementById("settings-apikey-input")?.value.trim() ?? "";
   const modelVal = provider === "ollama"
     ? (document.getElementById("settings-model-select")?.value || null)
     : (document.getElementById("settings-model-input")?.value.trim() || null);
-  const updates = { ttsSpeed, roundSize, defaultDifficulty, provider, apiKey };
+  const s = settingsGet();
+  const apiKeys = { ...s.apiKeys };
+  if (provider !== "ollama") apiKeys[provider] = apiKeyVal;
+  const updates = { ttsSpeed, roundSize, defaultDifficulty, provider, apiKeys };
   if (provider === "ollama") updates.defaultModel = modelVal;
   else updates.cloudModel = modelVal;
   settingsSave(updates);

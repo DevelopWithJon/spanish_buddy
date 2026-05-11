@@ -53,7 +53,7 @@ async function openG5ModelPicker() {
 
   if (provider !== "ollama") {
     const model = aiActiveModel();
-    if (!model || !s.apiKey) {
+    if (!model || !s.apiKeys?.[provider]) {
       alert(`No API key configured for ${PROVIDER_LABELS[provider] || provider}. Add one in ⚙️ Settings.`);
       return;
     }
