@@ -98,7 +98,7 @@ async function startGame4(model) {
     g4LoadCard();
   } catch (e) {
     g4el.spinner.style.display = "none";
-    g4el.filterStatus.textContent = "Could not connect to AI. Check your settings.";
+    g4el.filterStatus.textContent = e.message || "Could not connect to AI. Check your settings.";
   }
 }
 

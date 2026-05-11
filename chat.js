@@ -367,10 +367,10 @@ async function sendOpeningMessage() {
     finalizeAIBubble(aiMsg.wrap, aiMsg.bubble);
     speakText(accumulated);
 
-  } catch {
+  } catch (err) {
     showThinking(false);
     if (!aiMsg) aiMsg = createStreamingBubble();
-    aiMsg.bubble.textContent = "⚠ Could not connect to AI. Check your settings.";
+    aiMsg.bubble.textContent = `⚠ ${err.message || "Could not connect to AI. Check your settings."}`;
     aiMsg.bubble.style.color = "#e74c3c";
   } finally {
     chatIsResponding = false;
@@ -484,10 +484,10 @@ async function sendToAI(userText) {
     finalizeAIBubble(aiMsg.wrap, aiMsg.bubble);
     speakText(accumulated);
 
-  } catch {
+  } catch (err) {
     showThinking(false);
     if (!aiMsg) aiMsg = createStreamingBubble();
-    aiMsg.bubble.textContent = "⚠ Could not connect to AI. Check your settings.";
+    aiMsg.bubble.textContent = `⚠ ${err.message || "Could not connect to AI. Check your settings."}`;
     aiMsg.bubble.style.color = "#e74c3c";
   } finally {
     chatIsResponding = false;

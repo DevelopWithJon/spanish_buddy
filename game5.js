@@ -103,9 +103,9 @@ async function startGame5(model) {
     g5el.totalScore.textContent = "0";
     showScreen("game5-screen");
     g5LoadCard();
-  } catch {
+  } catch (e) {
     g5el.spinner.style.display = "none";
-    g5el.filterStatus.textContent = "Could not connect to AI. Check your settings.";
+    g5el.filterStatus.textContent = e.message || "Could not connect to AI. Check your settings.";
   }
 }
 

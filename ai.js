@@ -233,6 +233,12 @@ async function aiChat(messages, opts = {}) {
   if (!res.ok) {
     let detail = "";
     try { detail = await res.text(); } catch {}
+    if (res.status === 429) {
+      throw new Error("Rate limit exceeded (429). Wait a moment and try again, or upgrade your API plan.");
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`Invalid or missing API key (${res.status}). Check your settings.`);
+    }
     throw new Error(
       `${PROVIDER_LABELS[provider] ?? provider} error ${res.status}` +
       (detail ? ": " + detail.slice(0, 200) : "")
