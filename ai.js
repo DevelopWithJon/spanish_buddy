@@ -3,14 +3,18 @@
 // ===========================
 
 const CLOUD_MODELS = {
-  openai:      ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-  gemini:      ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
-  claude:      ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
+  openai:      ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
+  gemini:      ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+  claude:      ["claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5"],
   openrouter:  [
+    // Free models (no credits needed — marked :free)
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "google/gemma-2-9b-it:free",
+    "qwen/qwen3-8b:free",
+    // Paid models
     "meta-llama/llama-3.3-70b-instruct",
-    "meta-llama/llama-3.1-8b-instruct",
-    "mistralai/mistral-7b-instruct",
-    "google/gemma-3-27b-it",
     "qwen/qwen-2.5-72b-instruct",
     "deepseek/deepseek-r1",
   ],
