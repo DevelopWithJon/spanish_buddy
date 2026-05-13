@@ -11,6 +11,8 @@ const SETTINGS_DEFAULTS = {
   ttsSpeed:           0.9,
   defaultDifficulty:  "intermediate",
   roundSize:          10,
+  elevenLabsKey:      "",
+  elevenLabsVoiceId:  "",
 };
 
 function settingsGet() {

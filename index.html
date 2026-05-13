@@ -10,17 +10,20 @@
 
   <!-- HOME SCREEN -->
   <div id="home-screen" class="screen active">
+    <nav class="home-top-nav" aria-label="Home navigation">
+      <button id="nav-banks-btn" class="home-nav-btn">Saved Banks</button>
+      <button id="nav-history-btn" class="home-nav-btn">History</button>
+    </nav>
+    <div class="home-dock" aria-label="Account and menu">
+      <button class="home-user-btn" title="User" aria-label="User profile">👤</button>
+      <button id="home-menu-btn" class="home-menu-btn" title="Menu" aria-label="Open menu" aria-controls="home-side-panel" aria-expanded="false">☰</button>
+    </div>
     <div class="home-card">
-      <button id="home-settings-btn" class="home-settings-btn" title="Settings" aria-label="Settings">⚙️ Settings</button>
       <div class="flag">🇪🇸</div>
       <h1>Spanish Trainer</h1>
       <div class="home-meta">
         <span><span id="home-word-count">10</span> words loaded</span>
         <button id="home-edit-words-btn" class="btn-link">Edit list</button>
-        <span class="home-meta-divider">·</span>
-        <button id="home-banks-btn" class="btn-link">Saved Banks</button>
-        <span class="home-meta-divider">·</span>
-        <button id="home-history-btn" class="btn-link">History</button>
       </div>
 
       <!-- Ollama offline banner (hidden by default) -->
@@ -74,6 +77,86 @@
       </div>
     </div>
   </div>
+
+  <div id="home-panel-overlay" class="side-panel-overlay hidden"></div>
+  <aside id="home-side-panel" class="home-side-panel" aria-hidden="true">
+    <div class="side-panel-header">
+      <div class="side-panel-user">
+        <div class="side-panel-avatar">👤</div>
+        <div>
+          <h2>Spanish Trainer</h2>
+          <p>Study workspace</p>
+        </div>
+      </div>
+      <button id="close-home-panel-btn" class="side-panel-close" aria-label="Close menu">✕</button>
+    </div>
+    <div class="side-panel-stats">
+      <div>
+        <span class="side-panel-stat-label">Words loaded</span>
+        <strong id="side-panel-word-count">10</strong>
+      </div>
+      <div>
+        <span class="side-panel-stat-label">Provider</span>
+        <strong id="side-panel-provider">Ollama</strong>
+      </div>
+    </div>
+    <div class="side-panel-actions">
+      <button id="panel-settings-btn" class="side-panel-action">
+        <span>⚙️</span>
+        <div>
+          <strong>Settings</strong>
+          <small>AI provider, model, voice, rounds</small>
+        </div>
+      </button>
+      <button id="panel-edit-words-btn" class="side-panel-action">
+        <span>✏️</span>
+        <div>
+          <strong>Edit Word List</strong>
+          <small>Update the active practice vocabulary</small>
+        </div>
+      </button>
+    </div>
+    <section class="side-progress-summary" aria-label="Progress summary">
+      <div class="side-progress-header">
+        <span>📈</span>
+        <h3>Progress Summary</h3>
+      </div>
+      <div class="side-progress-grid">
+        <div>
+          <span class="side-panel-stat-label">Sessions</span>
+          <strong id="side-progress-sessions">0</strong>
+        </div>
+        <div>
+          <span class="side-panel-stat-label">Avg Score</span>
+          <strong id="side-progress-average">--</strong>
+        </div>
+        <div>
+          <span class="side-panel-stat-label">Best</span>
+          <strong id="side-progress-best">--</strong>
+        </div>
+        <div>
+          <span class="side-panel-stat-label">Recent</span>
+          <strong id="side-progress-recent">--</strong>
+        </div>
+      </div>
+      <p id="side-progress-note" class="side-progress-note">Complete a practice round to start tracking progress.</p>
+    </section>
+    <section class="side-achievements" aria-label="Achievements">
+      <div class="side-progress-header">
+        <span>🏅</span>
+        <h3>Achievements</h3>
+      </div>
+      <div class="achievement-current">
+        <span id="side-achievement-level">Bronze I</span>
+        <strong id="side-achievement-xp">0 XP</strong>
+      </div>
+      <div class="achievement-progress" aria-hidden="true">
+        <div id="side-achievement-fill"></div>
+      </div>
+      <p id="side-achievement-next" class="side-progress-note">Complete a round to start leveling up.</p>
+      <button id="side-achievements-btn" class="achievement-view-btn">View Levels</button>
+    </section>
+  </aside>
 
   <!-- GAME 1 PRE-ROUND SCREEN -->
   <div id="g1-preround-screen" class="screen">
@@ -468,6 +551,18 @@
     </div>
   </div>
 
+  <!-- ACHIEVEMENTS MODAL -->
+  <div id="achievements-modal" class="modal-overlay hidden">
+    <div class="modal modal-wide">
+      <div class="review-header">
+        <h3>Achievements</h3>
+        <button id="close-achievements-btn" class="btn-link" style="color:var(--text-muted)">Close</button>
+      </div>
+      <p id="achievements-summary" class="modal-hint">Earn XP by completing practice rounds.</p>
+      <div id="achievements-list" class="achievements-list"></div>
+    </div>
+  </div>
+
   <!-- GAME 5 LOADING SCREEN -->
   <div id="g5-loading-screen" class="screen">
     <div class="results-card" style="text-align:center">
@@ -816,6 +911,21 @@
         <span style="font-size:0.8rem;color:var(--text-muted)">1.5×</span>
         <span class="settings-slider-val" id="settings-tts-val">0.9×</span>
       </div>
+
+      <p class="settings-section-label" style="margin-top:14px">Voice</p>
+      <input type="password" id="settings-elevenlabs-key" class="settings-input"
+             placeholder="ElevenLabs API key (optional)…" autocomplete="off" spellcheck="false" />
+      <p class="settings-apikey-note">
+        Get a free key at <a href="https://elevenlabs.io" target="_blank" rel="noopener" style="color:var(--accent)">elevenlabs.io</a>
+        · Stored locally, never sent to our servers.
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <select id="settings-voice-select" class="settings-select" style="flex:1;margin:0">
+          <option value="">Default (browser voice)</option>
+        </select>
+        <button id="settings-voice-load-btn" class="btn btn-secondary btn-sm">Load Voices</button>
+      </div>
+      <p id="settings-voice-status" class="settings-apikey-note" style="display:none;margin-top:6px"></p>
 
       <p class="settings-section-label">Default Difficulty</p>
       <div class="difficulty-options" id="settings-difficulty-options">

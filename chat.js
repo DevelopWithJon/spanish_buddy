@@ -562,8 +562,10 @@ function showThinking(visible) {
 
 // ── Text-to-speech ────────────────────────────────────────────────────────────
 
-let chatTTSEnabled = true;
-let cachedVoices   = [];
+let chatTTSEnabled   = true;
+let cachedVoices     = [];
+let activeEl11Audio  = null;   // currently playing ElevenLabs Audio element
+let el11QuotaCache   = null;   // { remaining: number, fetchedAt: number }
 
 if (window.speechSynthesis) {
   const loadVoices = () => { cachedVoices = window.speechSynthesis.getVoices(); };
@@ -571,12 +573,93 @@ if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = loadVoices;
 }
 
+async function fetchEl11Quota(apiKey) {
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
+      headers: { "xi-api-key": apiKey },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const remaining = Math.max(0, (data.character_limit || 0) - (data.character_count || 0));
+    el11QuotaCache = { remaining, fetchedAt: Date.now() };
+  } catch {
+    // If quota check fails, leave cache as-is rather than blocking TTS
+  }
+}
+
+async function getEl11Remaining(apiKey) {
+  const FIVE_MIN = 5 * 60 * 1000;
+  if (!el11QuotaCache || Date.now() - el11QuotaCache.fetchedAt > FIVE_MIN) {
+    await fetchEl11Quota(apiKey);
+  }
+  return el11QuotaCache?.remaining ?? Infinity; // if unknown, allow the attempt
+}
+
+async function speakWithElevenLabs(text, voiceId, apiKey) {
+  const remaining = await getEl11Remaining(apiKey);
+  if (remaining < text.length) {
+    throw new Error("quota_exceeded");
+  }
+
+  const s = settingsGet();
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    method: "POST",
+    headers: {
+      "Accept":       "audio/mpeg",
+      "Content-Type": "application/json",
+      "xi-api-key":   apiKey,
+    },
+    body: JSON.stringify({
+      text,
+      model_id: "eleven_multilingual_v2",
+      voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+    }),
+  });
+
+  if (res.status === 429) {
+    if (el11QuotaCache) el11QuotaCache.remaining = 0;
+    throw new Error("quota_exceeded");
+  }
+  if (!res.ok) throw new Error(`ElevenLabs ${res.status}`);
+
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.playbackRate = s.ttsSpeed || 0.9;
+  audio.onended = () => URL.revokeObjectURL(url);
+  activeEl11Audio = audio;
+  audio.play();
+
+  // Deduct used characters from cache so we don't over-use before next refresh
+  if (el11QuotaCache) el11QuotaCache.remaining = Math.max(0, el11QuotaCache.remaining - text.length);
+}
+
 function speakText(text) {
-  if (!chatTTSEnabled || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
+  if (!chatTTSEnabled) return;
+
+  stopSpeech();
+
+  const s = settingsGet();
+  if (s.elevenLabsKey && s.elevenLabsVoiceId) {
+    speakWithElevenLabs(text, s.elevenLabsVoiceId, s.elevenLabsKey).catch(err => {
+      if (err.message === "quota_exceeded") {
+        console.warn("[ElevenLabs TTS] Quota exhausted — switching to browser voice");
+      } else {
+        console.warn("[ElevenLabs TTS]", err.message);
+      }
+      browserSpeak(text, s.ttsSpeed);
+    });
+    return;
+  }
+
+  browserSpeak(text, s.ttsSpeed);
+}
+
+function browserSpeak(text, rate) {
+  if (!window.speechSynthesis) return;
   const utter   = new SpeechSynthesisUtterance(text);
   utter.lang    = "es-ES";
-  utter.rate    = 0.92;
+  utter.rate    = rate ?? 0.92;
   utter.pitch   = 1.0;
   const esVoice = cachedVoices.find(v => v.lang === "es-ES") ||
                   cachedVoices.find(v => v.lang.startsWith("es"));
@@ -585,6 +668,10 @@ function speakText(text) {
 }
 
 function stopSpeech() {
+  if (activeEl11Audio) {
+    activeEl11Audio.pause();
+    activeEl11Audio = null;
+  }
   window.speechSynthesis?.cancel();
 }
 

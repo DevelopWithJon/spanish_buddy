@@ -103,6 +103,7 @@ function historySave(entry) {
   list.unshift({ ...entry, date: new Date().toISOString() });
   if (list.length > 100) list.length = 100;
   localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  updateHomePanelDetails();
 }
 
 function historyFormatDate(iso) {
@@ -115,6 +116,72 @@ function historyScoreColor(pct) {
   if (pct >= 80) return "#2ecc71";
   if (pct >= 50) return "#f39c12";
   return "#e74c3c";
+}
+
+const ACHIEVEMENT_LEVELS = [
+  { name: "Bronze I", xp: 0 },
+  { name: "Bronze II", xp: 150 },
+  { name: "Bronze III", xp: 350 },
+  { name: "Silver I", xp: 600 },
+  { name: "Silver II", xp: 900 },
+  { name: "Silver III", xp: 1250 },
+  { name: "Gold I", xp: 1650 },
+  { name: "Gold II", xp: 2100 },
+  { name: "Gold III", xp: 2600 },
+  { name: "Platinum I", xp: 3200 },
+  { name: "Platinum II", xp: 3900 },
+  { name: "Platinum III", xp: 4700 },
+  { name: "Diamond", xp: 5600 },
+  { name: "Champion", xp: 6600 },
+  { name: "Maestro", xp: 7800 },
+];
+
+function achievementXpFromHistory(entries = historyGet()) {
+  return entries.reduce((total, e) => {
+    const pct = e.pct ?? Math.round((e.score / e.max) * 100);
+    return total + 50 + Math.max(0, Math.min(100, pct));
+  }, 0);
+}
+
+function achievementState(entries = historyGet()) {
+  const xp = achievementXpFromHistory(entries);
+  let currentIndex = 0;
+  for (let i = 0; i < ACHIEVEMENT_LEVELS.length; i++) {
+    if (xp >= ACHIEVEMENT_LEVELS[i].xp) currentIndex = i;
+  }
+  const current = ACHIEVEMENT_LEVELS[currentIndex];
+  const next = ACHIEVEMENT_LEVELS[currentIndex + 1] || null;
+  const span = next ? next.xp - current.xp : 1;
+  const progress = next ? Math.round(((xp - current.xp) / span) * 100) : 100;
+  return { xp, current, next, currentIndex, progress };
+}
+
+function openAchievementsModal() {
+  const modal = document.getElementById("achievements-modal");
+  const listEl = document.getElementById("achievements-list");
+  const summaryEl = document.getElementById("achievements-summary");
+  if (!modal || !listEl || !summaryEl) return;
+
+  const state = achievementState();
+  summaryEl.textContent = `${state.xp} XP earned · Current level: ${state.current.name}`;
+  listEl.innerHTML = "";
+
+  ACHIEVEMENT_LEVELS.forEach((level, index) => {
+    const row = document.createElement("div");
+    const unlocked = state.xp >= level.xp;
+    const current = index === state.currentIndex;
+    row.className = `achievement-row${unlocked ? " unlocked" : ""}${current ? " current" : ""}`;
+    row.innerHTML = `
+      <span class="achievement-rank">${index + 1}</span>
+      <div class="achievement-info">
+        <strong>${level.name}</strong>
+        <small>${level.xp} XP required</small>
+      </div>
+      <span class="achievement-status">${unlocked ? "Unlocked" : "Locked"}</span>`;
+    listEl.appendChild(row);
+  });
+
+  modal.classList.remove("hidden");
 }
 
 function openHistoryModal() {
@@ -376,9 +443,94 @@ document.getElementById("pick-game2").addEventListener("click", () => {
 });
 
 document.getElementById("home-edit-words-btn").addEventListener("click", openWordEditor);
+document.getElementById("nav-banks-btn")?.addEventListener("click", openBanksModal);
+document.getElementById("nav-history-btn")?.addEventListener("click", openHistoryModal);
+
+const homeMenuBtn = document.getElementById("home-menu-btn");
+const homePanel = document.getElementById("home-side-panel");
+const homePanelOverlay = document.getElementById("home-panel-overlay");
+const closeHomePanelBtn = document.getElementById("close-home-panel-btn");
+
+function updateHomePanelDetails() {
+  const wordCountEl = document.getElementById("side-panel-word-count");
+  if (wordCountEl) wordCountEl.textContent = WORDS.length;
+
+  const providerEl = document.getElementById("side-panel-provider");
+  if (providerEl) {
+    const provider = settingsGet().provider || "ollama";
+    providerEl.textContent = PROVIDER_LABELS[provider] || provider;
+  }
+
+  const entries = historyGet();
+  const sessionsEl = document.getElementById("side-progress-sessions");
+  const averageEl = document.getElementById("side-progress-average");
+  const bestEl = document.getElementById("side-progress-best");
+  const recentEl = document.getElementById("side-progress-recent");
+  const noteEl = document.getElementById("side-progress-note");
+  if (!sessionsEl || !averageEl || !bestEl || !recentEl || !noteEl) return;
+
+  sessionsEl.textContent = String(entries.length);
+  if (!entries.length) {
+    averageEl.textContent = "--";
+    bestEl.textContent = "--";
+    recentEl.textContent = "--";
+    noteEl.textContent = "Complete a practice round to start tracking progress.";
+  } else {
+    const pctValues = entries.map(e => e.pct ?? Math.round((e.score / e.max) * 100));
+    const average = Math.round(pctValues.reduce((sum, pct) => sum + pct, 0) / pctValues.length);
+    const best = Math.max(...pctValues);
+    const recent = pctValues[0];
+    const lastGame = entries[0]?.game === "pronunciation" ? "Pronunciation" : "Fill in the Blank";
+    averageEl.textContent = `${average}%`;
+    bestEl.textContent = `${best}%`;
+    recentEl.textContent = `${recent}%`;
+    noteEl.textContent = `Latest round: ${lastGame} at ${recent}%.`;
+  }
+
+  const levelEl = document.getElementById("side-achievement-level");
+  const xpEl = document.getElementById("side-achievement-xp");
+  const fillEl = document.getElementById("side-achievement-fill");
+  const nextEl = document.getElementById("side-achievement-next");
+  if (!levelEl || !xpEl || !fillEl || !nextEl) return;
+
+  const state = achievementState(entries);
+  levelEl.textContent = state.current.name;
+  xpEl.textContent = `${state.xp} XP`;
+  fillEl.style.width = `${state.progress}%`;
+  nextEl.textContent = state.next
+    ? `${state.next.xp - state.xp} XP to ${state.next.name}.`
+    : "Top achievement reached.";
+}
+
+function setHomePanelOpen(open) {
+  homePanel?.classList.toggle("open", open);
+  homePanelOverlay?.classList.toggle("hidden", !open);
+  homePanel?.setAttribute("aria-hidden", String(!open));
+  homeMenuBtn?.setAttribute("aria-expanded", String(open));
+}
+
+homeMenuBtn?.addEventListener("click", () => {
+  setHomePanelOpen(!homePanel?.classList.contains("open"));
+});
+closeHomePanelBtn?.addEventListener("click", () => setHomePanelOpen(false));
+homePanelOverlay?.addEventListener("click", () => setHomePanelOpen(false));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") setHomePanelOpen(false);
+});
+
+document.getElementById("panel-edit-words-btn")?.addEventListener("click", () => {
+  setHomePanelOpen(false);
+  openWordEditor();
+});
+
+document.getElementById("side-achievements-btn")?.addEventListener("click", () => {
+  setHomePanelOpen(false);
+  openAchievementsModal();
+});
 
 function updateHomeWordCount() {
   document.getElementById("home-word-count").textContent = WORDS.length;
+  updateHomePanelDetails();
 }
 
 // ===========================
@@ -894,8 +1046,6 @@ document.getElementById("save-as-btn").addEventListener("click", async () => {
   setTimeout(() => { btn.textContent = "Save Bank"; btn.disabled = false; }, 1500);
 });
 
-document.getElementById("home-banks-btn").addEventListener("click", openBanksModal);
-document.getElementById("home-history-btn").addEventListener("click", openHistoryModal);
 document.getElementById("close-history-btn").addEventListener("click", () => {
   document.getElementById("history-modal").classList.add("hidden");
 });
@@ -903,10 +1053,20 @@ document.getElementById("history-clear-btn").addEventListener("click", () => {
   if (!confirm("Clear all performance history?")) return;
   localStorage.removeItem(HISTORY_KEY);
   document.getElementById("history-list").innerHTML = '<p class="banks-empty">No sessions recorded yet.</p>';
+  updateHomePanelDetails();
 });
 document.getElementById("history-modal").addEventListener("click", (e) => {
   if (e.target === document.getElementById("history-modal"))
     document.getElementById("history-modal").classList.add("hidden");
+});
+
+document.getElementById("close-achievements-btn")?.addEventListener("click", () => {
+  document.getElementById("achievements-modal")?.classList.add("hidden");
+});
+
+document.getElementById("achievements-modal")?.addEventListener("click", (e) => {
+  if (e.target === document.getElementById("achievements-modal"))
+    document.getElementById("achievements-modal").classList.add("hidden");
 });
 
 document.getElementById("close-banks-btn").addEventListener("click", () => {
@@ -1180,6 +1340,7 @@ function applySettingsToUI() {
     btn.classList.toggle("selected", btn.dataset.level === s.defaultDifficulty);
   });
   chatSelectedDifficulty = s.defaultDifficulty;
+  updateHomePanelDetails();
 }
 
 const CLOUD_MODEL_PLACEHOLDERS = {
@@ -1216,6 +1377,68 @@ async function refreshSettingsModelSelect(provider, s) {
   }
 }
 
+// ── ElevenLabs voice helpers ──────────────────────────────────────────────────
+
+function resetVoiceSelect() {
+  const sel = document.getElementById("settings-voice-select");
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Default (browser voice)</option>';
+  const status = document.getElementById("settings-voice-status");
+  if (status) status.style.display = "none";
+}
+
+async function loadElevenLabsVoicesIntoSelect(apiKey, selectedVoiceId = "") {
+  const sel    = document.getElementById("settings-voice-select");
+  const status = document.getElementById("settings-voice-status");
+  if (!sel) return;
+
+  sel.innerHTML = '<option value="">Loading voices…</option>';
+  sel.disabled  = true;
+  if (status) { status.style.display = "none"; }
+
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/voices", {
+      headers: { "xi-api-key": apiKey },
+    });
+    if (!res.ok) throw new Error(res.status === 401 ? "Invalid API key" : `Error ${res.status}`);
+    const { voices } = await res.json();
+
+    sel.innerHTML = '<option value="">Default (browser voice)</option>' +
+      voices
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(v => {
+          const lang   = v.labels?.language || "";
+          const accent = v.labels?.accent   || "";
+          const desc   = [lang, accent].filter(Boolean).join(", ");
+          const label  = desc ? `${v.name} (${desc})` : v.name;
+          return `<option value="${v.voice_id}">${label}</option>`;
+        })
+        .join("");
+
+    if (selectedVoiceId) sel.value = selectedVoiceId;
+    if (status) {
+      status.textContent    = `✓ ${voices.length} voices loaded`;
+      status.style.display  = "";
+      status.style.color    = "var(--green, #2ecc71)";
+    }
+  } catch (err) {
+    sel.innerHTML = '<option value="">Default (browser voice)</option>';
+    if (status) {
+      status.textContent   = `⚠ ${err.message}`;
+      status.style.display = "";
+      status.style.color   = "var(--red, #e74c3c)";
+    }
+  } finally {
+    sel.disabled = false;
+  }
+}
+
+document.getElementById("settings-voice-load-btn")?.addEventListener("click", async () => {
+  const key = document.getElementById("settings-elevenlabs-key")?.value.trim();
+  if (!key) { resetVoiceSelect(); return; }
+  await loadElevenLabsVoicesIntoSelect(key, document.getElementById("settings-voice-select")?.value || "");
+});
+
 let settingsActiveProvider = null;
 
 async function openSettingsModal() {
@@ -1239,6 +1462,15 @@ async function openSettingsModal() {
     btn.classList.toggle("selected", btn.dataset.level === s.defaultDifficulty);
   });
   await refreshSettingsModelSelect(provider, s);
+
+  const el11Input = document.getElementById("settings-elevenlabs-key");
+  if (el11Input) el11Input.value = s.elevenLabsKey || "";
+  if (s.elevenLabsKey) {
+    await loadElevenLabsVoicesIntoSelect(s.elevenLabsKey, s.elevenLabsVoiceId || "");
+  } else {
+    resetVoiceSelect();
+  }
+
   document.getElementById("settings-modal").classList.remove("hidden");
 }
 
@@ -1247,7 +1479,10 @@ function settingsToggleOpenRouterNote(provider) {
   if (note) note.style.display = provider === "openrouter" ? "" : "none";
 }
 
-document.getElementById("home-settings-btn").addEventListener("click", openSettingsModal);
+document.getElementById("panel-settings-btn")?.addEventListener("click", () => {
+  setHomePanelOpen(false);
+  openSettingsModal();
+});
 
 document.getElementById("settings-tts-slider").addEventListener("input", () => {
   const v = parseFloat(document.getElementById("settings-tts-slider").value).toFixed(2);
@@ -1300,7 +1535,9 @@ document.getElementById("save-settings-btn").addEventListener("click", () => {
   const s = settingsGet();
   const apiKeys = { ...s.apiKeys };
   if (provider !== "ollama") apiKeys[provider] = apiKeyVal;
-  const updates = { ttsSpeed, roundSize, defaultDifficulty, provider, apiKeys };
+  const elevenLabsKey     = document.getElementById("settings-elevenlabs-key")?.value.trim() ?? "";
+  const elevenLabsVoiceId = document.getElementById("settings-voice-select")?.value ?? "";
+  const updates = { ttsSpeed, roundSize, defaultDifficulty, provider, apiKeys, elevenLabsKey, elevenLabsVoiceId };
   if (provider === "ollama") updates.defaultModel = modelVal;
   else updates.cloudModel = modelVal;
   settingsSave(updates);
