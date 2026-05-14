@@ -29,14 +29,15 @@ const g6el = {
   evaluating:        document.getElementById("g6-evaluating"),
   feedback:          document.getElementById("g6-feedback"),
   scoreGrammar:      document.getElementById("g6-score-grammar"),
-  scoreSpelling:     document.getElementById("g6-score-spelling"),
-  scoreWord:         document.getElementById("g6-score-word"),
+  scoreSyntax:       document.getElementById("g6-score-syntax"),
+  scoreClarity:      document.getElementById("g6-score-clarity"),
   scoreTotal:        document.getElementById("g6-score-total"),
+  wordBadge:         document.getElementById("g6-word-badge"),
   feedbackText:      document.getElementById("g6-feedback-text"),
-  grammarErrors:     document.getElementById("g6-grammar-errors"),
-  grammarItems:      document.getElementById("g6-grammar-error-items"),
-  spellingErrors:    document.getElementById("g6-spelling-errors"),
-  spellingItems:     document.getElementById("g6-spelling-error-items"),
+  correctSection:    document.getElementById("g6-correct-section"),
+  correctItems:      document.getElementById("g6-correct-items"),
+  errorsSection:     document.getElementById("g6-errors-section"),
+  errorItems:        document.getElementById("g6-error-items"),
   yourSentence:      document.getElementById("g6-your-sentence"),
   correctedRow:      document.getElementById("g6-corrected-row"),
   corrected:         document.getElementById("g6-corrected"),
@@ -111,8 +112,9 @@ function g6LoadCard() {
   g6el.nextBtn.classList.add("hidden");
   g6el.skipBtn.classList.remove("hidden");
   g6el.error.classList.add("hidden");
-  g6el.grammarErrors.classList.add("hidden");
-  g6el.spellingErrors.classList.add("hidden");
+  g6el.wordBadge.classList.add("hidden");
+  g6el.correctSection.classList.add("hidden");
+  g6el.errorsSection.classList.add("hidden");
   g6el.correctedRow.classList.add("hidden");
   g6el.yourSentence.innerHTML = "";
   if (g6el.debugRaw) g6el.debugRaw.textContent = "";
@@ -192,66 +194,80 @@ async function g6GenerateSentence(targetWord) {
 // Evaluation
 // ===========================
 const G6_DIFFICULTY_GRADING = {
-  beginner: `DIFFICULTY — BEGINNER: Be forgiving with grammar and creativity. Prioritize coherence over style.
-- If the meaning is clear, score grammar 4 or 5 unless errors severely obscure the message
-- Accept basic vocabulary and simple sentence structure without penalising style
-- Reward the attempt generously — encourage rather than discourage`,
+  beginner: `DIFFICULTY — BEGINNER: Be forgiving and encouraging. Prioritise meaning over perfection.
+- If the message is clear, score grammar and syntax 7 or above unless errors obscure the meaning
+- Accept basic vocabulary and simple structure; do not penalise lack of sophistication
+- Be generous with wordUsage — reward any recognisable form
+- Keep error notes very simple and supportive`,
 
-  intermediate: `DIFFICULTY — INTERMEDIATE: Be moderately strict on tone, grammar, and consistency.
-- Reward creativity and descriptive detail while requiring logical flow
-- Expect generally correct grammar; dock 1–2 points for clear mistakes
+  intermediate: `DIFFICULTY — INTERMEDIATE: Be moderately strict. Reward creativity and logical flow.
+- Expect generally correct grammar and natural sentence structure; note clear mistakes
+- Score 6–8 range for mostly correct work with minor issues
 - Transitions and character continuity should feel natural`,
 
   advanced: `DIFFICULTY — ADVANCED: Be strict. Hold the student to a high literary standard.
-- Reward subtlety, originality, and literary quality
-- Penalise contradictions, weak tone matching, and illogical narrative progression
-- Penalise basic vocabulary when nuanced alternatives exist
-- Expect strong thematic and emotional consistency with the context sentence
-- Support and reward foreshadowing, symbolism, and complex storytelling`,
+- Reward subtlety, originality, and literary quality — penalise weak or generic expression
+- Penalise contradictions, illogical narrative, and poor tone matching
+- Expect strong thematic consistency; foreshadowing and symbolism raise the score`,
 };
+
+// Known top-level keys — also used by JSON repair logic
+const G6_SCHEMA_KEYS = "grammar|syntax|clarity|wordUsage|wordFound|total|errors|correct|feedback|corrected";
 
 function g6BuildEvalSystem() {
   const diffBlock = G6_DIFFICULTY_GRADING[g6Difficulty] || G6_DIFFICULTY_GRADING.intermediate;
-  return `You are grading a Spanish sentence continuation exercise. Return ONLY valid JSON — no markdown, no explanation.
+  return `You are a beginner-friendly Spanish tutor grading a sentence continuation exercise. Return ONLY valid JSON — no markdown, no explanation outside the JSON.
 
 TASK: A student was given a Spanish sentence and asked to write a continuation that uses a specific required word (or any conjugated/inflected form of it).
 
-SCORING RULES:
+WHAT TO EVALUATE — identify ALL of the following mistake types if present:
+- Grammar mistakes (wrong tense, wrong mood, missing articles)
+- Verb conjugation mistakes (wrong ending for subject or tense)
+- Gender/plural agreement issues (wrong article or adjective ending)
+- Syntax or sentence structure problems (wrong word order, awkward construction)
+- Incorrect word choice or preposition usage
+- Missing accents only when they change meaning (e.g. sí vs si, él vs el)
+- Spelling errors (wrong letters)
 
-grammar (0–5): grammatical correctness of the student's sentence
-  5 = perfect grammar
-  4 = one minor error (e.g. wrong accent, minor agreement issue)
-  3 = two or three errors but the sentence is understandable
-  2 = several errors
-  1 = barely grammatical
-  0 = not a recognisable Spanish sentence
+For EACH mistake, explain WHY it is wrong using simple beginner-friendly English. Also note what the learner did correctly — be honest but encouraging.
 
-spelling (0–3): spelling accuracy — ignore missing accent marks, focus on wrong letters
-  3 = no spelling errors
-  2 = one error
-  1 = two errors
-  0 = three or more errors
+SCORING (each 0–10):
+
+grammar (0–10): grammatical correctness
+  10 = flawless  8–9 = one minor error  6–7 = a few errors but understandable  4–5 = several errors  0–3 = major issues
+
+syntax (0–10): sentence structure and word order
+  10 = natural and fluent  8–9 = mostly natural  6–7 = understandable but awkward  4–5 = confusing structure  0–3 = very hard to follow
+
+clarity (0–10): overall clarity and naturalness of expression
+  10 = sounds like a native speaker  8–9 = very clear  6–7 = clear with minor issues  4–5 = understandable with effort  0–3 = unclear
 
 wordUsage (0–2): did the student use the required word?
   2 = the required word OR any conjugated/inflected form appears and is used correctly
       e.g. "hablar" → "habla", "hablé", "hablando", "hablamos" all earn 2 points
-  1 = a recognisable form appears but is used awkwardly
+  1 = a recognisable form appears but used awkwardly
   0 = ONLY if no recognisable form appears anywhere — be generous, when in doubt award credit
 
 ${diffBlock}
 
-grammarErrors: array of specific grammar mistakes. Each: {"original":"wrong text","corrected":"correct text","note":"brief English explanation"}. Use [] if none.
-spellingErrors: array of spelling mistakes. Each: {"original":"misspelled","corrected":"correct"}. Use [] if none.
-wordFound: true if the required word or any recognisable form appears; false only if completely absent.
-feedback: one short encouraging English sentence about overall performance.
-corrected: full corrected Spanish sentence if there were errors; "" if perfect.
-
-Return this exact format (no extra keys, no markdown):
-{"grammar":4,"spelling":3,"wordUsage":2,"total":9,"grammarErrors":[],"spellingErrors":[],"wordFound":true,"feedback":"...","corrected":"..."}`;
+Return this exact JSON format (no extra keys, no markdown):
+{
+  "grammar": 8,
+  "syntax": 7,
+  "clarity": 9,
+  "wordUsage": 2,
+  "wordFound": true,
+  "correct": ["brief note on something done well", "another positive if genuinely warranted"],
+  "errors": [
+    {"type": "conjugation", "original": "exact wrong text", "corrected": "correct text", "note": "Beginner-friendly WHY explanation"}
+  ],
+  "feedback": "One encouraging overall sentence about the student's writing.",
+  "corrected": "Full corrected Spanish sentence if there were errors, or empty string if perfect"
 }
 
-// Known top-level keys in the eval response — used to detect misplaced keys.
-const G6_SCHEMA_KEYS = "grammar|spelling|wordUsage|wordFound|total|grammarErrors|spellingErrors|feedback|corrected";
+Error types must be one of: grammar, conjugation, agreement, syntax, word_choice, preposition, accent, spelling`;
+}
+
 
 // Robust JSON parser — handles trailing commas, unescaped control chars,
 // surrounding prose, and unclosed arrays (AI forgot ] before a sibling key).
@@ -362,44 +378,52 @@ Student's continuation sentence: "${typed}"`;
     if (g6el.debugRaw) g6el.debugRaw.textContent = cleaned;
     console.log("[G6 Eval] Parsed result:", result);
 
-    let grammar   = Math.min(5, Math.max(0, result.grammar   ?? 0));
-    let spelling  = Math.min(3, Math.max(0, result.spelling  ?? 0));
-    let wordUsage = Math.min(2, Math.max(0, result.wordUsage ?? 0));
+    let grammar   = Math.min(10, Math.max(0, result.grammar   ?? 0));
+    let syntax    = Math.min(10, Math.max(0, result.syntax    ?? 0));
+    let clarity   = Math.min(10, Math.max(0, result.clarity   ?? 0));
+    let wordUsage = Math.min(2,  Math.max(0, result.wordUsage ?? 0));
 
-    // JS fallback: if the AI scored wordUsage=0 but the stem is visibly in the typed text, override to 1
+    // JS fallback: if AI scored wordUsage=0 but stem is present, override to 1
     const stemFound = g6StemMatch(g6CurrentWord.spanish, typed);
     if (wordUsage === 0 && stemFound) {
       console.warn(`[G6 Eval] wordUsage override: stem of "${g6CurrentWord.spanish}" found in typed text despite AI score of 0 — bumping to 1`);
       wordUsage = 1;
     }
 
-    const pts = grammar + spelling + wordUsage;
+    // pts: scale the 3 main scores to /8 then add word usage /2 → max 10
+    const pts = Math.round(((grammar + syntax + clarity) / 30) * 8) + wordUsage;
 
     g6Score += pts;
     g6Results.push({
       english: g6CurrentWord.english, spanish: g6CurrentWord.spanish,
       sentence: g6CurrentSentence, typed,
-      grammar, spelling, wordUsage, pts,
-      grammarErrors:  result.grammarErrors  || [],
-      spellingErrors: result.spellingErrors || [],
-      wordFound:      result.wordFound ?? stemFound,
-      feedback:       result.feedback  || "",
-      corrected:      result.corrected || "",
+      grammar, syntax, clarity, wordUsage, pts,
+      errors:    result.errors   || [],
+      correct:   result.correct  || [],
+      wordFound: result.wordFound ?? stemFound,
+      feedback:  result.feedback  || "",
+      corrected: result.corrected || "",
     });
 
-    g6el.totalScore.textContent    = g6Score;
+    g6el.totalScore.textContent   = g6Score;
     animateScore(g6el.totalScore);
-    g6el.scoreGrammar.textContent  = `${grammar}/5`;
-    g6el.scoreSpelling.textContent = `${spelling}/3`;
-    g6el.scoreWord.textContent     = `${wordUsage}/2`;
-    g6el.scoreTotal.textContent    = `${pts}/10`;
-    g6el.scoreTotal.style.color    = pts >= 8 ? "var(--green)" : pts >= 5 ? "var(--yellow)" : "var(--red)";
-    g6el.feedbackText.textContent  = result.feedback || "";
+    g6el.scoreGrammar.textContent = `${grammar}/10`;
+    g6el.scoreSyntax.textContent  = `${syntax}/10`;
+    g6el.scoreClarity.textContent = `${clarity}/10`;
+    g6el.scoreTotal.textContent   = `${pts}/10`;
+    g6el.scoreTotal.style.color   = pts >= 8 ? "var(--green)" : pts >= 5 ? "var(--yellow)" : "var(--red)";
 
-    const grammarErrs  = result.grammarErrors  || [];
-    const spellingErrs = result.spellingErrors || [];
-    const wrongWords   = [...grammarErrs, ...spellingErrs].map(e => e.original).filter(Boolean);
-    const rightWords   = [...grammarErrs, ...spellingErrs].map(e => e.corrected).filter(Boolean);
+    // Word usage badge
+    const wordFound = result.wordFound ?? stemFound;
+    g6el.wordBadge.textContent  = wordFound ? `✓ Word used (${wordUsage}/2)` : `✗ Target word not found (0/2)`;
+    g6el.wordBadge.style.color  = wordFound ? "var(--green)" : "var(--red)";
+    g6el.wordBadge.classList.remove("hidden");
+
+    g6el.feedbackText.textContent = result.feedback || "";
+
+    const errors    = result.errors || [];
+    const wrongWords = errors.map(e => e.original).filter(Boolean);
+    const rightWords = errors.map(e => e.corrected).filter(Boolean);
 
     // Show typed sentence with error words underlined in red
     g6el.yourSentence.innerHTML = g6Highlight(typed, wrongWords, "g6-mark-wrong");
@@ -412,31 +436,37 @@ Student's continuation sentence: "${typed}"`;
       g6el.correctedRow.classList.add("hidden");
     }
 
-    // Grammar errors detail list
-    if (grammarErrs.length) {
-      g6el.grammarItems.innerHTML = grammarErrs.map(e => `
+    // "What you did well" section
+    const correctList = result.correct || [];
+    if (correctList.length) {
+      g6el.correctItems.innerHTML = correctList.map(c =>
+        `<div class="g6-correct-item">✔ ${c}</div>`
+      ).join("");
+      g6el.correctSection.classList.remove("hidden");
+    } else {
+      g6el.correctSection.classList.add("hidden");
+    }
+
+    // Error type label map
+    const TYPE_LABELS = {
+      grammar: "Grammar", conjugation: "Conjugation", agreement: "Agreement",
+      syntax: "Syntax", word_choice: "Word choice", preposition: "Preposition",
+      accent: "Accent", spelling: "Spelling",
+    };
+
+    // Corrections list
+    if (errors.length) {
+      g6el.errorItems.innerHTML = errors.map(e => `
         <div class="g6-error-item">
+          ${e.type ? `<span class="g6-err-type">${TYPE_LABELS[e.type] || e.type}</span>` : ""}
           <mark class="g6-mark-wrong">${e.original}</mark>
           <span class="g6-err-arrow">→</span>
           <mark class="g6-mark-right">${e.corrected}</mark>
           ${e.note ? `<span class="g6-err-note">${e.note}</span>` : ""}
         </div>`).join("");
-      g6el.grammarErrors.classList.remove("hidden");
+      g6el.errorsSection.classList.remove("hidden");
     } else {
-      g6el.grammarErrors.classList.add("hidden");
-    }
-
-    // Spelling errors detail list
-    if (spellingErrs.length) {
-      g6el.spellingItems.innerHTML = spellingErrs.map(e => `
-        <div class="g6-error-item">
-          <mark class="g6-mark-wrong">${e.original}</mark>
-          <span class="g6-err-arrow">→</span>
-          <mark class="g6-mark-right">${e.corrected}</mark>
-        </div>`).join("");
-      g6el.spellingErrors.classList.remove("hidden");
-    } else {
-      g6el.spellingErrors.classList.add("hidden");
+      g6el.errorsSection.classList.add("hidden");
     }
 
     g6el.evaluating.classList.add("hidden");
@@ -453,18 +483,19 @@ Student's continuation sentence: "${typed}"`;
     g6Results.push({
       english: g6CurrentWord.english, spanish: g6CurrentWord.spanish,
       sentence: g6CurrentSentence, typed,
-      grammar: 0, spelling: 0, wordUsage: 0, pts: 0,
-      grammarErrors: [], spellingErrors: [], wordFound: false,
+      grammar: 0, syntax: 0, clarity: 0, wordUsage: 0, pts: 0,
+      errors: [], correct: [], wordFound: false,
       feedback: "Could not evaluate.", corrected: "",
     });
     g6el.scoreGrammar.textContent  = "—";
-    g6el.scoreSpelling.textContent = "—";
-    g6el.scoreWord.textContent     = "—";
+    g6el.scoreSyntax.textContent   = "—";
+    g6el.scoreClarity.textContent  = "—";
     g6el.scoreTotal.textContent    = "0/10";
     g6el.scoreTotal.style.color    = "var(--red)";
+    g6el.wordBadge.classList.add("hidden");
     g6el.feedbackText.textContent  = `⚠ Evaluation failed — expand Debug below to see what the AI returned`;
-    g6el.grammarErrors.classList.add("hidden");
-    g6el.spellingErrors.classList.add("hidden");
+    g6el.correctSection.classList.add("hidden");
+    g6el.errorsSection.classList.add("hidden");
     g6el.correctedRow.classList.add("hidden");
     g6el.feedback.classList.remove("hidden");
     g6el.nextBtn.classList.remove("hidden");
@@ -481,7 +512,7 @@ function g6SkipCard() {
   g6Results.push({
     english: g6CurrentWord?.english || "—", spanish: g6CurrentWord?.spanish || "—",
     sentence: g6CurrentSentence || "—", typed: "—",
-    grammar: 0, spelling: 0, wordUsage: 0, pts: 0, feedback: "Skipped", corrected: "",
+    grammar: 0, syntax: 0, clarity: 0, wordUsage: 0, pts: 0, errors: [], correct: [], feedback: "Skipped", corrected: "",
   });
   g6Index++;
   if (g6Index >= g6Deck.length) g6ShowResults();

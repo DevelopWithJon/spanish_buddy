@@ -3082,6 +3082,29 @@ mark.g6-mark-right {
 .g6-err-arrow { color: var(--text-muted); }
 .g6-err-right { color: var(--green); font-weight: 600; }
 .g6-err-note  { color: var(--text-muted); font-size: 0.78rem; font-style: italic; flex-basis: 100%; padding-left: 2px; }
+.g6-err-type  {
+  font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.08); border-radius: 4px; padding: 1px 6px;
+  color: var(--text-muted);
+}
+.g6-correct-section {
+  background: rgba(46,213,115,0.07);
+  border: 1px solid rgba(46,213,115,0.18);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.g6-correct-item {
+  font-size: 0.88rem;
+  color: var(--green);
+}
+.g6-word-badge {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin: 0;
+}
 .g6-debug {
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 8px;

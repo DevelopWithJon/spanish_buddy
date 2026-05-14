@@ -798,18 +798,19 @@
             <span class="g6-score-lbl">Grammar</span>
           </div>
           <div class="g6-score-item">
-            <span class="g6-score-val" id="g6-score-spelling">—</span>
-            <span class="g6-score-lbl">Spelling</span>
+            <span class="g6-score-val" id="g6-score-syntax">—</span>
+            <span class="g6-score-lbl">Syntax</span>
           </div>
           <div class="g6-score-item">
-            <span class="g6-score-val" id="g6-score-word">—</span>
-            <span class="g6-score-lbl">Word used</span>
+            <span class="g6-score-val" id="g6-score-clarity">—</span>
+            <span class="g6-score-lbl">Clarity</span>
           </div>
           <div class="g6-score-item g6-score-total-item">
             <span class="g6-score-val" id="g6-score-total">0/10</span>
             <span class="g6-score-lbl">Total</span>
           </div>
         </div>
+        <p id="g6-word-badge" class="g6-word-badge hidden"></p>
         <p id="g6-feedback-text" class="g6-feedback-text"></p>
 
         <div class="g6-diff-block">
@@ -823,14 +824,14 @@
           </div>
         </div>
 
-        <div id="g6-grammar-errors" class="g6-error-list hidden">
-          <p class="g6-error-list-label">📋 Grammar issues</p>
-          <div id="g6-grammar-error-items"></div>
+        <div id="g6-correct-section" class="g6-correct-section hidden">
+          <p class="g6-error-list-label">✅ What you did well</p>
+          <div id="g6-correct-items"></div>
         </div>
 
-        <div id="g6-spelling-errors" class="g6-error-list hidden">
-          <p class="g6-error-list-label">🔤 Spelling issues</p>
-          <div id="g6-spelling-error-items"></div>
+        <div id="g6-errors-section" class="g6-error-list hidden">
+          <p class="g6-error-list-label">📋 Corrections</p>
+          <div id="g6-error-items"></div>
         </div>
 
         <details class="g6-debug">
