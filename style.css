@@ -1273,7 +1273,7 @@ body {
   .home-top-nav { top: 12px; }
   .home-nav-btn { font-size: 0.78rem; padding: 7px 9px; }
   .home-dock { left: 16px; bottom: 16px; }
-  .home-user-btn, .home-menu-btn { width: 40px; height: 40px; }
+  .home-user-btn, .home-menu-btn { width: 44px; height: 44px; }
   .home-side-panel { width: 100%; padding: 18px; }
   .game-header { padding: 12px 14px; }
   .flashcard { height: 180px; }
@@ -1518,8 +1518,8 @@ body {
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 50%;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1553,8 +1553,8 @@ body {
   background: #1a5fb4;
   border: none;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1572,8 +1572,8 @@ body {
   background: rgba(231,76,60,0.15);
   border: 1px solid rgba(231,76,60,0.4);
   border-radius: 50%;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3125,4 +3125,125 @@ mark.g6-mark-right {
   max-height: 200px;
   overflow-y: auto;
   font-family: 'Courier New', monospace;
+}
+
+/* ===========================
+   Mobile — Comprehensive (≤ 480px)
+=========================== */
+@media (max-width: 480px) {
+  /* Global screen padding */
+  .screen { padding: 16px; }
+
+  /* ---- Home ---- */
+  .home-card { padding: 28px 18px; max-width: 100%; }
+  .home-card h1 { font-size: 1.6rem; }
+  .flag { font-size: 40px; }
+  .game-card { padding: 16px; }
+  .game-title { font-size: 0.98rem; }
+
+  /* ---- Game header (shared across games) ---- */
+  .game-header { padding: 10px 12px; gap: 8px; }
+  .game-header-right { gap: 8px; }
+
+  /* ---- Flashcard games (G1, G3) ---- */
+  .game-main { padding: 20px 0; gap: 16px; }
+  .flashcard { max-width: 100%; height: 170px; }
+  .flashcard-front h2, .flashcard-back h2 { font-size: 1.5rem; }
+  .feedback-panel { max-width: 100%; padding: 18px 16px; }
+  .feedback-word { font-size: 1.1rem; }
+
+  /* ---- Pre-round screens ---- */
+  .preround-card { max-width: 100%; padding: 24px 18px; }
+  .preround-word-list { max-height: 260px; }
+  .preround-word-row { font-size: 0.88rem; }
+
+  /* ---- Results screens ---- */
+  .results-card { padding: 28px 18px; max-width: 100%; }
+  .results-icon { font-size: 40px; }
+  .results-card h2 { font-size: 1.4rem; }
+  #final-score, #g2-final-score,
+  #g4-final-score, #g5-final-score,
+  #g6-final-score { font-size: 2.6rem; }
+  .breakdown-row { font-size: 0.85rem; gap: 6px; }
+
+  /* ---- Game 2 (Fill in Blank / Pronunciation) ---- */
+  .sentence-card { max-width: 100%; padding: 20px 16px; }
+  .sentence-text { font-size: 1.1rem; }
+  .answer-area { max-width: 100%; }
+  #g2-feedback { max-width: 100%; }
+
+  /* ---- Modals ---- */
+  .modal-overlay { padding: 12px; }
+  .modal { max-width: 100%; padding: 20px 16px; }
+  .modal-wide { max-width: 100%; width: 100%; padding: 20px 16px; }
+  .modal h3 { font-size: 1.1rem; }
+  .model-list { max-height: 200px; }
+
+  /* ---- Difficulty buttons inside modals ---- */
+  .difficulty-options { gap: 6px; }
+  .difficulty-btn { padding: 10px 8px; font-size: 0.82rem; }
+  .diff-label { font-size: 0.82rem; }
+  .diff-desc { font-size: 0.7rem; }
+
+  /* ---- Settings ---- */
+  .settings-provider-grid { grid-template-columns: repeat(3, 1fr); }
+  .settings-section-label { font-size: 0.72rem; }
+
+  /* ---- Game 4 (Noun Gender) ---- */
+  .g4-word-card { padding: 24px 18px; min-width: 0; }
+  .g4-word-display { font-size: 2rem; }
+  .g4-gender-btns { max-width: 100%; gap: 10px; }
+  .g4-gender-btn { padding: 14px 10px; }
+  .g4-conjugation-table { font-size: 0.82rem; }
+  .g4-conj-cell { padding: 6px 8px; }
+
+  /* ---- Game 5 (Verb Conjugation) ---- */
+  .g5-verb-card { padding: 24px 18px; min-width: 0; }
+  .g5-pronoun-badge { font-size: 1.7rem; }
+  .g5-infinitive { font-size: 1.9rem; }
+  .g5-feedback { max-width: 100%; }
+  .g5-conjugation-table { font-size: 0.82rem; }
+  .g5-conj-cell { padding: 6px 8px; }
+
+  /* ---- Game 6 (Story Weaver) ---- */
+  .game6-main { max-width: 100%; padding: 14px 0; }
+  .g6-sentence-card { padding: 16px; }
+  .g6-ai-sentence { font-size: 1rem; }
+  .g6-textarea { font-size: 0.95rem; min-height: 80px; }
+  .g6-score-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .g6-score-val { font-size: 1rem; }
+  .g6-diff-block { gap: 10px; }
+  .g6-diff-label { font-size: 0.7rem; }
+  .g6-diff-text { font-size: 0.88rem; }
+  .g6-error-item { font-size: 0.82rem; }
+  .g6-err-note { font-size: 0.72rem; }
+
+  /* ---- Chat ---- */
+  .chat-input-bar { padding: 8px 12px; }
+  .chat-text-input { font-size: 0.88rem; padding: 9px 14px; }
+  .chat-bubble { font-size: 0.88rem; max-width: 90%; }
+  .chat-review-redo, .chat-review-send { padding: 11px 16px; font-size: 0.82rem; }
+
+  /* ---- Knowledge Hub ---- */
+  .kb-content { max-width: 100%; padding: 16px; }
+  .kb-delete-btn { width: 36px; height: 36px; font-size: 0.85rem; }
+  .kb-doc-list-item { gap: 8px; padding: 10px 12px; }
+
+  /* ---- Side panel ---- */
+  .home-side-panel { width: 100%; }
+  .side-panel-stats, .side-progress-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Extra-small screens (≤ 360px) */
+@media (max-width: 360px) {
+  .screen { padding: 12px; }
+  .home-card { padding: 20px 14px; }
+  .home-card h1 { font-size: 1.4rem; }
+  .settings-provider-grid { grid-template-columns: repeat(2, 1fr); }
+  .g6-score-grid { grid-template-columns: repeat(2, 1fr); }
+  .g4-gender-btns { flex-direction: column; }
+  .modal { padding: 16px 14px; }
+  #final-score, #g2-final-score,
+  #g4-final-score, #g5-final-score,
+  #g6-final-score { font-size: 2.2rem; }
 }
