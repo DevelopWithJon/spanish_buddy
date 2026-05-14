@@ -11,6 +11,36 @@ const G5_PRONOUNS = [
   { display: "ellas", key: "ellos" },
 ];
 
+const G5_IRREGULAR_CONJUGATIONS = {
+  ser:     { yo: "soy", tu: "eres", el: "es", ellos: "son" },
+  estar:   { yo: "estoy", tu: "estas", el: "esta", ellos: "estan" },
+  ir:      { yo: "voy", tu: "vas", el: "va", ellos: "van" },
+  tener:   { yo: "tengo", tu: "tienes", el: "tiene", ellos: "tienen" },
+  hacer:   { yo: "hago", tu: "haces", el: "hace", ellos: "hacen" },
+  poder:   { yo: "puedo", tu: "puedes", el: "puede", ellos: "pueden" },
+  querer:  { yo: "quiero", tu: "quieres", el: "quiere", ellos: "quieren" },
+  venir:   { yo: "vengo", tu: "vienes", el: "viene", ellos: "vienen" },
+  decir:   { yo: "digo", tu: "dices", el: "dice", ellos: "dicen" },
+  poner:   { yo: "pongo", tu: "pones", el: "pone", ellos: "ponen" },
+  salir:   { yo: "salgo", tu: "sales", el: "sale", ellos: "salen" },
+  ver:     { yo: "veo", tu: "ves", el: "ve", ellos: "ven" },
+  dar:     { yo: "doy", tu: "das", el: "da", ellos: "dan" },
+  saber:   { yo: "se", tu: "sabes", el: "sabe", ellos: "saben" },
+  conocer: { yo: "conozco", tu: "conoces", el: "conoce", ellos: "conocen" },
+  traer:   { yo: "traigo", tu: "traes", el: "trae", ellos: "traen" },
+  oir:     { yo: "oigo", tu: "oyes", el: "oye", ellos: "oyen" },
+  jugar:   { yo: "juego", tu: "juegas", el: "juega", ellos: "juegan" },
+  dormir:  { yo: "duermo", tu: "duermes", el: "duerme", ellos: "duermen" },
+  pedir:   { yo: "pido", tu: "pides", el: "pide", ellos: "piden" },
+  pensar:  { yo: "pienso", tu: "piensas", el: "piensa", ellos: "piensan" },
+  empezar: { yo: "empiezo", tu: "empiezas", el: "empieza", ellos: "empiezan" },
+  preferir:{ yo: "prefiero", tu: "prefieres", el: "prefiere", ellos: "prefieren" },
+  entender:{ yo: "entiendo", tu: "entiendes", el: "entiende", ellos: "entienden" },
+  volver:  { yo: "vuelvo", tu: "vuelves", el: "vuelve", ellos: "vuelven" },
+  repetir: { yo: "repito", tu: "repites", el: "repite", ellos: "repiten" },
+  seguir:  { yo: "sigo", tu: "sigues", el: "sigue", ellos: "siguen" },
+};
+
 let g5Model = null;
 let g5SelectedModel = null;
 let g5Deck = [];   // [{english, spanish, conjugations: {yo, tu, el, ellos}}]
@@ -96,6 +126,7 @@ async function startGame5(model) {
       return;
     }
 
+    g5el.filterStatus.textContent = `Found ${verbs.length} verbs. Starting challenge…`;
     g5Deck = shuffle([...verbs]);
     g5Index = 0;
     g5Score = 0;
@@ -113,18 +144,21 @@ async function startGame5(model) {
 // AI Verb Filtering
 // ===========================
 async function g5FetchVerbs() {
-  const wordList = WORDS.map(w => `${w.spanish} (${w.english})`).join(", ");
+  const localVerbs = g5LocalVerbCandidates();
+  if (!localVerbs.length) return [];
+
+  const wordList = localVerbs.map(w => `${w.spanish} (${w.english})`).join("\n");
   const messages = [
     {
       role: "system",
-      content: `You are a Spanish grammar expert. From the given Spanish words, identify ONLY the verbs (infinitive forms).
+      content: `You are a Spanish grammar expert. The user will provide Spanish infinitive verb candidates with English glosses.
 For each verb, provide its present-tense indicative conjugations for yo, tú, él/ella, and ellos/ellas.
 
 Respond ONLY with a valid JSON array — no explanation, no markdown, no code fences:
 [{"spanish":"hablar","conjugations":{"yo":"hablo","tu":"hablas","el":"habla","ellos":"hablan"}},{"spanish":"comer","conjugations":{"yo":"como","tu":"comes","el":"come","ellos":"comen"}}]
 
 Rules:
-- Only include words that are clearly verbs in infinitive form
+- Include every item that is a valid Spanish infinitive verb
 - Only include verbs where you are confident in all four conjugations
 - Return an empty array [] if no verbs are found`
     },
@@ -132,8 +166,67 @@ Rules:
   ];
 
   const systemMsg = messages[0].content;
-  const raw = await aiGenerate(systemMsg, wordList, { model: g5Model, temperature: 0.1, maxTokens: 600 });
-  return g5ParseVerbResponse(raw);
+  const maxTokens = Math.min(6000, Math.max(1400, localVerbs.length * 90));
+  try {
+    const raw = await aiGenerate(systemMsg, wordList, { model: g5Model, temperature: 0.1, maxTokens });
+    return g5MergeVerbResults(localVerbs, g5ParseVerbResponse(raw));
+  } catch {
+    return localVerbs;
+  }
+}
+
+function g5LocalVerbCandidates() {
+  return WORDS
+    .filter(w => g5LooksLikeInfinitive(w.spanish) || g5EnglishLooksVerb(w.english))
+    .filter(w => g5LooksLikeInfinitive(w.spanish))
+    .map(w => {
+      const spanish = g5CleanInfinitive(w.spanish);
+      return {
+        spanish,
+        english: w.english,
+        conjugations: g5ConjugateLocally(spanish),
+      };
+    });
+}
+
+function g5CleanInfinitive(value) {
+  return normalize(value).replace(/\s+/g, " ").trim();
+}
+
+function g5LooksLikeInfinitive(value) {
+  return /^(?:[a-záéíóúñü]+)(?:ar|er|ir)$/.test(g5CleanInfinitive(value));
+}
+
+function g5EnglishLooksVerb(value) {
+  return /^to\s+\w+/i.test(String(value || "").trim());
+}
+
+function g5ConjugateLocally(infinitive) {
+  const key = normalize(infinitive);
+  if (G5_IRREGULAR_CONJUGATIONS[key]) return G5_IRREGULAR_CONJUGATIONS[key];
+
+  const ending = key.slice(-2);
+  const stem = key.slice(0, -2);
+  if (ending === "ar") {
+    return { yo: `${stem}o`, tu: `${stem}as`, el: `${stem}a`, ellos: `${stem}an` };
+  }
+  if (ending === "er") {
+    return { yo: `${stem}o`, tu: `${stem}es`, el: `${stem}e`, ellos: `${stem}en` };
+  }
+  return { yo: `${stem}o`, tu: `${stem}es`, el: `${stem}e`, ellos: `${stem}en` };
+}
+
+function g5MergeVerbResults(localVerbs, aiVerbs) {
+  const bySpanish = new Map(localVerbs.map(v => [normalize(v.spanish), v]));
+  aiVerbs.forEach(v => {
+    const key = normalize(v.spanish);
+    if (!bySpanish.has(key)) return;
+    bySpanish.set(key, {
+      ...bySpanish.get(key),
+      conjugations: v.conjugations,
+    });
+  });
+  return [...bySpanish.values()];
 }
 
 function g5ParseVerbResponse(raw) {

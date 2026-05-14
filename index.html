@@ -69,6 +69,11 @@
           <h3>Verb Conjugation Challenge</h3>
           <p>Type the correct present-tense conjugation for each subject pronoun</p>
         </button>
+        <button class="game-option-card" id="pick-game6">
+          <span class="game-icon">✍️</span>
+          <h3>Story Weaver</h3>
+          <p>Continue AI-generated sentences using a target word, scored on grammar and spelling</p>
+        </button>
         <button class="game-option-card kb-home-card" id="home-knowledge-btn">
           <span class="game-icon">📚</span>
           <h3>Knowledge Hub</h3>
@@ -443,6 +448,37 @@
     </div>
   </div>
 
+  <!-- GAME 6 MODEL PICKER MODAL -->
+  <div id="g6-model-picker-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>✍️ Story Weaver</h3>
+      <p class="modal-section-label">Model</p>
+      <div id="g6-model-list" class="model-list">
+        <div class="model-loading">Loading models...</div>
+      </div>
+      <p class="modal-section-label">Difficulty</p>
+      <div class="difficulty-options" id="g6-difficulty-options">
+        <button class="difficulty-btn" data-level="beginner">
+          <span class="diff-label">Beginner</span>
+          <span class="diff-sub">Clear &amp; simple</span>
+        </button>
+        <button class="difficulty-btn selected" data-level="intermediate">
+          <span class="diff-label">Intermediate</span>
+          <span class="diff-sub">Descriptive</span>
+        </button>
+        <button class="difficulty-btn" data-level="advanced">
+          <span class="diff-label">Advanced</span>
+          <span class="diff-sub">Literary</span>
+        </button>
+      </div>
+      <p id="g6-model-error" class="editor-error hidden"></p>
+      <div class="modal-actions">
+        <button id="start-game6-btn" class="btn btn-primary" disabled>Start Game →</button>
+        <button id="cancel-g6-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- CHAT BUDDY PICKER MODAL -->
   <div id="chat-picker-modal" class="modal-overlay hidden">
     <div class="modal">
@@ -687,6 +723,143 @@
       <div class="results-actions">
         <button id="g4-retry-btn" class="btn btn-secondary">Play Again</button>
         <button id="g4-home-results-btn" class="btn btn-secondary">← Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME 6 PRE-ROUND SCREEN -->
+  <div id="g6-preround-screen" class="screen">
+    <div class="preround-card">
+      <div class="preround-meta">
+        <span id="g6-preround-round-label" class="preround-round-label">Round 1 of 1</span>
+      </div>
+      <h2>Word Bank</h2>
+      <p class="preround-hint">You'll be given one of these words to use in each sentence continuation.</p>
+      <div id="g6-preround-word-list" class="preround-word-list"></div>
+      <button id="g6-start-round-btn" class="btn btn-primary">Start Round →</button>
+      <button id="g6-preround-home-btn" class="btn btn-secondary">← Home</button>
+    </div>
+  </div>
+
+  <!-- GAME 6 SCREEN -->
+  <div id="game6-screen" class="screen">
+    <header class="game-header">
+      <button id="g6-home-btn" class="btn-home">← Home</button>
+      <div class="progress-info">
+        <span id="g6-card-counter">1 / 10</span>
+        <div class="progress-bar"><div id="g6-progress-fill"></div></div>
+      </div>
+      <div class="score-display">
+        <span class="score-label">Score</span>
+        <span id="g6-total-score">0</span>
+      </div>
+      <span id="g6-difficulty-badge" class="difficulty-badge">Intermediate</span>
+    </header>
+    <main class="game6-main">
+
+      <!-- Generating sentence -->
+      <div id="g6-loading" class="g2-loading">
+        <div class="spinner"></div>
+        <span>Generating sentence…</span>
+      </div>
+
+      <!-- AI sentence + target word -->
+      <div id="g6-sentence-card" class="g6-sentence-card hidden">
+        <p class="g6-ai-label">Continue this sentence in Spanish:</p>
+        <p id="g6-ai-sentence" class="g6-ai-sentence"></p>
+        <div class="g6-target-row">
+          <span class="g6-target-label">Use this word:</span>
+          <span id="g6-target-word" class="g6-target-badge"></span>
+        </div>
+      </div>
+
+      <!-- User input -->
+      <div id="g6-input-area" class="g6-input-area hidden">
+        <textarea id="g6-textarea" class="g6-textarea"
+                  placeholder="Escribe tu continuación aquí… (Ctrl+Enter to submit)"
+                  rows="3" spellcheck="false" autocomplete="off"></textarea>
+        <div class="controls" style="margin-top:12px">
+          <button id="g6-submit-btn" class="btn btn-primary">Submit ✓</button>
+          <button id="g6-skip-btn" class="btn btn-skip">Skip</button>
+        </div>
+      </div>
+
+      <!-- Evaluating spinner -->
+      <div id="g6-evaluating" class="g2-loading hidden">
+        <div class="spinner"></div>
+        <span>Evaluating your sentence…</span>
+      </div>
+
+      <!-- Score feedback -->
+      <div id="g6-feedback" class="g6-feedback hidden">
+        <div class="g6-score-grid">
+          <div class="g6-score-item">
+            <span class="g6-score-val" id="g6-score-grammar">—</span>
+            <span class="g6-score-lbl">Grammar</span>
+          </div>
+          <div class="g6-score-item">
+            <span class="g6-score-val" id="g6-score-spelling">—</span>
+            <span class="g6-score-lbl">Spelling</span>
+          </div>
+          <div class="g6-score-item">
+            <span class="g6-score-val" id="g6-score-word">—</span>
+            <span class="g6-score-lbl">Word used</span>
+          </div>
+          <div class="g6-score-item g6-score-total-item">
+            <span class="g6-score-val" id="g6-score-total">0/10</span>
+            <span class="g6-score-lbl">Total</span>
+          </div>
+        </div>
+        <p id="g6-feedback-text" class="g6-feedback-text"></p>
+
+        <div class="g6-diff-block">
+          <div class="g6-diff-row">
+            <span class="g6-diff-label">You wrote:</span>
+            <p id="g6-your-sentence" class="g6-diff-text"></p>
+          </div>
+          <div id="g6-corrected-row" class="g6-diff-row hidden">
+            <span class="g6-diff-label">✏️ Correction:</span>
+            <p id="g6-corrected" class="g6-diff-text"></p>
+          </div>
+        </div>
+
+        <div id="g6-grammar-errors" class="g6-error-list hidden">
+          <p class="g6-error-list-label">📋 Grammar issues</p>
+          <div id="g6-grammar-error-items"></div>
+        </div>
+
+        <div id="g6-spelling-errors" class="g6-error-list hidden">
+          <p class="g6-error-list-label">🔤 Spelling issues</p>
+          <div id="g6-spelling-error-items"></div>
+        </div>
+
+        <details class="g6-debug">
+          <summary>Debug: AI response</summary>
+          <pre id="g6-debug-raw" class="g6-debug-raw"></pre>
+        </details>
+
+        <button id="g6-next-btn" class="btn btn-next hidden" style="margin-top:12px;width:100%">Next →</button>
+      </div>
+
+      <p id="g6-error" class="g2-error hidden"></p>
+    </main>
+  </div>
+
+  <!-- GAME 6 RESULTS -->
+  <div id="game6-results-screen" class="screen">
+    <div class="results-card">
+      <div class="results-icon" id="g6-results-icon">🏆</div>
+      <h2 id="g6-results-title">Round Complete!</h2>
+      <div class="final-score-display">
+        <span id="g6-final-score">0</span>
+        <span class="final-score-max" id="g6-final-score-max">/ 100</span>
+      </div>
+      <p id="g6-results-message"></p>
+      <div class="results-breakdown" id="g6-results-breakdown"></div>
+      <div class="results-actions">
+        <button id="g6-next-round-btn" class="btn btn-primary hidden">Next Round →</button>
+        <button id="g6-retry-btn" class="btn btn-secondary">Play Again</button>
+        <button id="g6-home-results-btn" class="btn btn-secondary">← Home</button>
       </div>
     </div>
   </div>
@@ -966,6 +1139,7 @@
   <script src="game3.js"></script>
   <script src="game4.js"></script>
   <script src="game5.js"></script>
+  <script src="game6.js"></script>
   <script src="knowledge.js"></script>
   <script src="chat.js"></script>
 </body>

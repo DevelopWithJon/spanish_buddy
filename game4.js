@@ -105,12 +105,21 @@ async function startGame4(model) {
 // ===========================
 // AI Noun Filtering
 // ===========================
+function g4NounCandidates() {
+  return WORDS.filter(w => !g4LooksLikeVerb(w.spanish));
+}
+
+function g4LooksLikeVerb(spanish) {
+  const clean = spanish.toLowerCase().replace(/[^a-záéíóúñü]/g, "").trim();
+  return /^[a-záéíóúñü]+(ar|er|ir)$/.test(clean);
+}
+
 async function g4FetchNouns() {
-  const wordList = WORDS.map(w => `${w.spanish} (${w.english})`).join(", ");
-  const messages = [
-    {
-      role: "system",
-      content: `You are a Spanish grammar expert. From the given Spanish words, identify ONLY the nouns.
+  const candidates = g4NounCandidates();
+  if (!candidates.length) return [];
+
+  const wordList = candidates.map(w => `${w.spanish} (${w.english})`).join("\n");
+  const systemMsg = `You are a Spanish grammar expert. From the given Spanish words, identify ONLY the nouns.
 For each noun, determine its grammatical gender and plural form.
 
 Respond ONLY with a valid JSON array — no explanation, no markdown, no code fences:
@@ -120,13 +129,10 @@ Rules:
 - Only include words that are clearly nouns (not verbs, adjectives, adverbs, or interjections)
 - Only include nouns with a clear, unambiguous gender ("masculine" or "feminine")
 - The "spanish" and "plural" fields must contain ONLY the bare noun — never include an article (el, la, los, las, un, una, unos, unas). Write "perro" not "el perro", "mesa" not "la mesa"
-- Return an empty array [] if no nouns are found`
-    },
-    { role: "user", content: wordList }
-  ];
+- Return an empty array [] if no nouns are found`;
 
-  const systemMsg = messages[0].content;
-  const raw = await aiGenerate(systemMsg, wordList, { model: g4Model, temperature: 0.1, maxTokens: 600 });
+  const maxTokens = Math.min(6000, Math.max(600, candidates.length * 40));
+  const raw = await aiGenerate(systemMsg, wordList, { model: g4Model, temperature: 0.1, maxTokens });
   return g4ParseNounResponse(raw);
 }
 
@@ -151,13 +157,16 @@ function g4ParseNounResponse(raw) {
     const arr = JSON.parse(text.slice(start, end + 1));
     if (!Array.isArray(arr)) return [];
 
+    const candidates = g4NounCandidates();
     return arr
       .filter(item =>
         item.spanish && item.gender && item.plural &&
         (item.gender === "masculine" || item.gender === "feminine")
       )
       .map(item => {
-        const match = WORDS.find(w =>
+        const match = candidates.find(w =>
+          w.spanish.toLowerCase() === item.spanish.toLowerCase()
+        ) || WORDS.find(w =>
           w.spanish.toLowerCase() === item.spanish.toLowerCase()
         );
         return {

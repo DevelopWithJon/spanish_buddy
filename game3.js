@@ -15,18 +15,24 @@ const g3el = {
   nextBtn:      document.getElementById("g3-next-btn"),
 };
 
+function g3BuildDeck() {
+  return shuffle([...WORDS]).map(w => ({ ...w, startFlipped: Math.random() < 0.5 }));
+}
+
 function startGame3() {
-  g3Deck = shuffle([...WORDS]);
+  g3Deck = g3BuildDeck();
   g3Index = 0;
   showScreen("game3-screen");
   g3LoadCard();
 }
 
 function g3LoadCard() {
-  g3Flipped = false;
-  g3el.flashcard.classList.remove("flipped");
-
   const word = g3Deck[g3Index];
+  g3Flipped = word.startFlipped;
+  g3el.flashcard.classList.add("g3-instant");
+  g3el.flashcard.classList.toggle("flipped", g3Flipped);
+  requestAnimationFrame(() => g3el.flashcard.classList.remove("g3-instant"));
+
   g3el.frontWord.textContent = word.english;
   g3el.backWord.textContent = word.spanish;
 
@@ -56,7 +62,7 @@ g3el.nextBtn.addEventListener("click", () => {
 });
 
 document.getElementById("g3-shuffle-btn").addEventListener("click", () => {
-  g3Deck = shuffle([...WORDS]);
+  g3Deck = g3BuildDeck();
   g3Index = 0;
   g3LoadCard();
 });

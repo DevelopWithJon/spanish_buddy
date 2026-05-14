@@ -382,6 +382,9 @@ const SCREEN_ROUTES = {
   "g5-loading-screen":      "verb-conjugation/loading",
   "game5-screen":           "verb-conjugation",
   "game5-results-screen":   "verb-conjugation/results",
+  "g6-preround-screen":     "story-weaver/setup",
+  "game6-screen":           "story-weaver",
+  "game6-results-screen":   "story-weaver/results",
   "knowledge-hub-screen":   "knowledge-hub",
   "chat-screen":            "chat",
 };
